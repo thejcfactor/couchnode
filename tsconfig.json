@@ -3,8 +3,9 @@
 
   "compilerOptions": {
     "outDir": "dist",
-    "declaration": true
+    "declaration": true,
+    "sourceMap": true,
   },
 
-  "include": ["lib"]
+  "include": ["lib/**/*"]
 }
