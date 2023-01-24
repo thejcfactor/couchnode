@@ -91,3 +91,18 @@ export enum StoreSemantics {
    */
   Insert = 2,
 }
+
+/**
+ * Represents the API implementation to use for the SDK.
+ */
+export enum ApiImplementation {
+  /**
+   * Indicates the API implementation used is class Couchbase Server
+   */
+  Classic = 0,
+
+  /**
+   * Indicates the API implementation used is Protostellar
+   */
+  Protostellar = 1,
+}

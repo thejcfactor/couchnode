@@ -3,7 +3,7 @@
 BASEDIR=$(dirname "$0")
 cd ${BASEDIR}/../
 
-PROTO_LIB=./lib/protostellar/generated
+PROTO_LIB=./new_lib/protostellar/generated
 PROTO_DIST=./dist/protostellar/generated
 PROTOS=./deps/stellar-nebula/proto
 CONTRIB_DIR=./deps/stellar-nebula/contrib/googleapis

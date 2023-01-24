@@ -7,5 +7,6 @@
     "sourceMap": true,
   },
 
-  "include": ["lib/**/*"]
+  // "include": ["lib/**/*"]
+  "include": ["new_lib/**/*"]
 }
