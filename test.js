@@ -3,8 +3,8 @@ const couchbase = require('./dist/couchbase')
 // const couchbase = require('./dist/classic/couchbase')
 
 const main = async () => {
-    const connStr = 'couchbase://localhost'
-    // const connStr = 'protostellar://10.66.166.137:18098'
+    //const connStr = 'couchbase://localhost'
+    const connStr = 'protostellar://192.168.1.237:18098'
     const cluster = await couchbase.connect(connStr,
     {
       username: 'Administrator',

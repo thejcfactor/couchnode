@@ -5,9 +5,9 @@ cd ${BASEDIR}/../
 
 PROTO_LIB=./new_lib/protostellar/generated
 PROTO_DIST=./dist/protostellar/generated
-PROTOS=./deps/stellar-nebula/proto
-CONTRIB_DIR=./deps/stellar-nebula/contrib/googleapis
-# GOOGLE_PROTOS=./node_modules/google-proto-files/
+PROTOS=./deps/protostellar
+# CONTRIB_DIR=./deps/stellar-nebula/contrib/googleapis
+GOOGLE_PROTOS=./node_modules/google-proto-files/
 
 echo "$PWD"
 
@@ -20,15 +20,15 @@ mkdir -p ${PROTO_LIB}
     --js_out=import_style=commonjs,binary:${PROTO_LIB} \
     --grpc_out=grpc_js:${PROTO_LIB} \
     --proto_path=${PROTOS} \
-    --proto_path=${CONTRIB_DIR} \
+    --proto_path=${GOOGLE_PROTOS} \
     ${PROTOS}/**/*.proto
 
 # Pretty sure this is a hack...but it works :/
 ./node_modules/.bin/grpc_tools_node_protoc \
     --js_out=import_style=commonjs,binary:${PROTO_LIB} \
     --grpc_out=grpc_js:${PROTO_LIB} \
-    --proto_path=${CONTRIB_DIR} \
-    ${CONTRIB_DIR}/google/rpc/*.proto
+    --proto_path=${GOOGLE_PROTOS} \
+    ${GOOGLE_PROTOS}/google/rpc/*.proto
 
 # Generate grpc_pb files (*.d.ts and *.js)
 ./node_modules/.bin/grpc_tools_node_protoc \
@@ -38,7 +38,7 @@ mkdir -p ${PROTO_LIB}
     --js_out=import_style=commonjs,binary:${PROTO_LIB} \
     --grpc_out=grpc_js:${PROTO_LIB} \
     --proto_path=${PROTOS} \
-    --proto_path=${CONTRIB_DIR} \
+    --proto_path=${GOOGLE_PROTOS} \
     ${PROTOS}/**/*.proto
 
 mkdir -p ${PROTO_DIST}
