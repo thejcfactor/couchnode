@@ -16,7 +16,7 @@ import { Scope } from '../scope'
 export class Bucket {
   private _cluster: Cluster
   private _name: string
-  private _conn: ChannelCredentials
+  private _channel: ChannelCredentials
 
   /**
   @internal
@@ -24,14 +24,14 @@ export class Bucket {
   constructor(cluster: Cluster, bucketName: string) {
     this._cluster = cluster
     this._name = bucketName
-    this._conn = cluster.conn
+    this._channel = cluster.channel
   }
 
   /**
   @internal
   */
-  get conn(): ChannelCredentials {
-    return this._conn
+  get channel(): ChannelCredentials {
+    return this._channel
   }
 
   /**

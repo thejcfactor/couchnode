@@ -21,7 +21,7 @@ export class Scope {
 
   private _bucket: Bucket
   private _name: string
-  private _conn: ChannelCredentials
+  private _channel: ChannelCredentials
   // private _queryService: QueryClient
 
   /**
@@ -30,7 +30,7 @@ export class Scope {
   constructor(bucket: Bucket, scopeName: string) {
     this._bucket = bucket
     this._name = scopeName
-    this._conn = bucket.conn
+    this._channel = bucket.channel
     // this._queryService = new QueryClient(this._bucket.cluster.connStr, this.conn)
   }
 
@@ -41,8 +41,8 @@ export class Scope {
   /**
    * @internal
    */
-  get conn(): ChannelCredentials {
-    return this._conn
+  get channel(): ChannelCredentials {
+    return this._channel
   }
 
   /**

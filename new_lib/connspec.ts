@@ -7,6 +7,8 @@ const partsMatcher = /((.*):\/\/)?(([^/?:]*)(:([^/?:@]*))?@)?([^/?]*)(\/([^?]*))
 const hostMatcher = /((\[[^\]]+\]+)|([^;,:]+))(:([0-9]*))?(;,)?/g
 const kvMatcher = /([^=]*)=([^&?]*)[&?]?/g
 
+const defaultProtostellarTlsPort = 18098
+
 export class ConnSpec {
   scheme: string
   hosts: [string, number][]
@@ -15,7 +17,8 @@ export class ConnSpec {
 
   constructor(data?: Partial<ConnSpec>, api = ApiImplementation.Classic) {
     this.scheme =  api == ApiImplementation.Classic ? 'couchbase' : 'protostellar'
-    this.hosts = [['localhost', 0]]
+    const defaultPort = api == ApiImplementation.Classic ? 0 : defaultProtostellarTlsPort
+    this.hosts = [['localhost', defaultPort]]
     this.bucket = ''
     this.options = {}
 
@@ -50,9 +53,10 @@ export class ConnSpec {
         if (!hostMatch) {
           break
         }
+        const defaultPort = api == ApiImplementation.Classic ? 0 : defaultProtostellarTlsPort
         spec.hosts.push([
           hostMatch[1],
-          hostMatch[5] ? parseInt(hostMatch[5], 10) : 0,
+          hostMatch[5] ? parseInt(hostMatch[5], 10) : defaultPort,
         ])
       }
     } else {

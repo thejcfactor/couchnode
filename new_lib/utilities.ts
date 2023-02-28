@@ -1,3 +1,4 @@
+import { Timestamp } from 'google-protobuf/google/protobuf/timestamp_pb';
 import { DurabilityLevel } from './generaltypes'
 import * as qs from 'querystring'
 
@@ -196,4 +197,15 @@ export function cbQsStringify(
     }
   }
   return qs.stringify(cbValues)
+}
+
+/**
+ * @internal
+ */
+export function expiryToTimestamp(expiry: number): Timestamp {
+  const expiryDate = new Date()
+  expiryDate.setSeconds(expiryDate.getSeconds() + expiry)
+  const expireTimestamp = new Timestamp()
+  expireTimestamp.fromDate(expiryDate)
+  return expireTimestamp
 }

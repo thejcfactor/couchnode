@@ -18,6 +18,50 @@ import { QueryExecutor } from './queryexecutor'
 import { QueryMetaData, QueryOptions, QueryResult } from '../querytypes'
 import { StreamableRowPromise } from '../streamablepromises'
 
+class ProtostellarConnection {
+  private _channel?: ChannelCredentials
+  private _queryService?: QueryClient
+
+  /**
+   * @internal
+   */
+  get channel(): ChannelCredentials {
+    if(!this._channel){
+      throw new Error('No gRPC channel for connection.')
+    }
+    return this._channel
+  }
+
+  /**
+   * @internal
+   */
+  set channel(channel: ChannelCredentials) {
+    this._channel = channel
+  }
+
+  /**
+  @internal
+  */
+  get queryService(): QueryClient {
+    if(!this._queryService){
+      throw new Error('No gRPC QueryClient for connection.')
+    }
+    return this._queryService
+  }
+
+  /**
+   * @internal
+   */
+  set queryService(svc: QueryClient) {
+    this._queryService = svc
+  }
+
+  constructor(channel?: ChannelCredentials, queryService?: QueryClient) {
+    this._channel = channel
+    this._queryService = queryService
+  }
+}
+
 /**
  * Exposes the operations which are available to be performed against a cluster.
  * Namely the ability to access to Buckets as well as performing management
@@ -37,19 +81,19 @@ export class Cluster {
   private _searchTimeout: number
   private _managementTimeout: number
   private _auth: Authenticator
-  private _conn: ChannelCredentials
+  private _conn: ProtostellarConnection
   private _transcoder: Transcoder
   // private _txnConfig: TransactionsConfig
   // private _transactions?: Transactions
   private _openBuckets: string[]
   private _dnsConfig: DnsConfig | null
-  private _queryService: QueryClient
+  private _queryService?: QueryClient
 
   /**
    * @internal
    */
-  get conn(): ChannelCredentials {
-    return this._conn
+  get channel(): ChannelCredentials {
+    return this._conn.channel
   }
 
   /**
@@ -119,7 +163,7 @@ export class Cluster {
   @internal
   */
   get queryService(): QueryClient {
-    return this._queryService
+    return this._conn.queryService
   }
 
   /**
@@ -138,7 +182,8 @@ export class Cluster {
       options.timeouts = {}
     }
 
-    this._connStr = connStr.replace('protostellar://', '')
+    //this._connStr = connStr.replace('protostellar://', '')
+    this._connStr = connStr
     this._trustStorePath = options.security.trustStorePath || ''
     this._kvTimeout = options.timeouts.kvTimeout || 2500
     this._kvDurableTimeout = options.timeouts.kvDurableTimeout || 10000
@@ -194,8 +239,8 @@ export class Cluster {
       this._dnsConfig = null
     }
 
-    this._conn = grpc.credentials.createInsecure()
-    this._queryService = new QueryClient(this.connStr, this.conn)
+    this._conn = new ProtostellarConnection()
+    // this._queryService = new QueryClient(this.connStr, this.conn)
     this._openBuckets = []
   }
 
@@ -267,42 +312,52 @@ export class Cluster {
 
   private async _connect() {
     return new Promise((resolve, reject) => {
-      const dsnObj = ConnSpec.parse(this._connStr, this.apiImplementation)
+      try {
+        const dsnObj = ConnSpec.parse(this._connStr, this.apiImplementation)
 
-      // @TODO(jc):  Do we need this w/ PS?
-      // dsnObj.options.user_agent_extra = generateClientString()
-      dsnObj.options.trust_certificate = this._trustStorePath
+        // @TODO(jc):  Do we need this w/ PS?
+        // dsnObj.options.user_agent_extra = generateClientString()
+  
+        const connStr = dsnObj.toString(true)
+  
+        // @TODO(jc):  How to handle Authenticators?
+        // dsnObj.options.trust_certificate = this._trustStorePath
+        // const authOpts = {
+        //   username: undefined as string | undefined,
+        //   password: undefined as string | undefined,
+        //   certificate_path: undefined as string | undefined,
+        //   key_path: undefined as string | undefined,
+        //   allowed_sasl_mechanisms: ['SCRAM-SHA512', 'SCRAM-SHA256', 'SCRAM-SHA1'],
+        // }
 
-      const connStr = dsnObj.toString(true)
+        // if (this._auth) {
+        //   const passAuth = this._auth as PasswordAuthenticator
+        //   if (passAuth.username || passAuth.password) {
+        //     authOpts.username = passAuth.username
+        //     authOpts.password = passAuth.password
 
-      const authOpts = {
-        username: undefined as string | undefined,
-        password: undefined as string | undefined,
-        certificate_path: undefined as string | undefined,
-        key_path: undefined as string | undefined,
-        allowed_sasl_mechanisms: ['SCRAM-SHA512', 'SCRAM-SHA256', 'SCRAM-SHA1'],
+        //     if (passAuth.allowed_sasl_mechanisms) {
+        //       authOpts.allowed_sasl_mechanisms = passAuth.allowed_sasl_mechanisms
+        //     }
+        //   }
+
+        //   const certAuth = this._auth as CertificateAuthenticator
+        //   if (certAuth.certificatePath || certAuth.keyPath) {
+        //     authOpts.certificate_path = certAuth.certificatePath
+        //     authOpts.key_path = certAuth.keyPath
+        //   }
+        // }
+  
+        this._conn.channel = grpc.credentials.createInsecure()
+        this._conn.queryService = new QueryClient(connStr, this._conn.channel)
+  
+        resolve(null)
+      } catch (e) {
+        // @TODO(jc):  translate to Couchbase Err
+        reject(e)
       }
-
-      resolve(null)
       
 
-      // if (this._auth) {
-      //   const passAuth = this._auth as PasswordAuthenticator
-      //   if (passAuth.username || passAuth.password) {
-      //     authOpts.username = passAuth.username
-      //     authOpts.password = passAuth.password
-
-      //     if (passAuth.allowed_sasl_mechanisms) {
-      //       authOpts.allowed_sasl_mechanisms = passAuth.allowed_sasl_mechanisms
-      //     }
-      //   }
-
-      //   const certAuth = this._auth as CertificateAuthenticator
-      //   if (certAuth.certificatePath || certAuth.keyPath) {
-      //     authOpts.certificate_path = certAuth.certificatePath
-      //     authOpts.key_path = certAuth.keyPath
-      //   }
-      // }
 
       // this._conn.connect(connStr, authOpts, this._dnsConfig, (cppErr) => {
       //   if (cppErr) {

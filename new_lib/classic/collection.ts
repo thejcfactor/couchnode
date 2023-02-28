@@ -22,8 +22,8 @@ import { Scope } from './scope'
 import { Transcoder } from '../transcoders'
 import {
   // CounterResult,
-  // ExistsResult,
-  // GetReplicaResult,
+  ExistsResult,
+  GetReplicaResult,
   GetResult,
   // LookupInResult,
   // LookupInResultEntry,
@@ -38,7 +38,8 @@ import {
   replicateToToCpp,
   storeSemanticToCpp,
 } from './bindingutilities'
-import { GetOptions, InsertOptions, RemoveOptions, ReplaceOptions, UpsertOptions } from '../collection'
+import { ExistsOptions, GetAllReplicasOptions, GetAndLockOptions, GetAndTouchOptions, GetAnyReplicaOptions, GetOptions, InsertOptions, RemoveOptions, ReplaceOptions, TouchOptions, UnlockOptions, UpsertOptions } from '../collection'
+import { StreamableReplicasPromise } from '../streamablepromises'
 import { NodeCallback, PromiseHelper, Cas } from '../utilities'
 
 /**
@@ -168,6 +169,65 @@ export class Collection {
   }
 
   /**
+   * Checks whether a specific document exists or not.
+   *
+   * @param key The document key to check for existence.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  exists(
+    key: string,
+    options?: ExistsOptions,
+    callback?: NodeCallback<ExistsResult>
+  ): Promise<ExistsResult> {
+    if (options instanceof Function) {
+      callback = arguments[1]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const timeout = options.timeout || this.cluster.kvTimeout
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._conn.exists(
+        {
+          id: this._cppDocId(key),
+          partition: 0,
+          opaque: 0,
+          timeout,
+        },
+        (cppErr, resp) => {
+          const err = errorFromCpp(cppErr)
+
+          if (err) {
+            return wrapCallback(err, null)
+          }
+
+          if (resp.deleted) {
+            return wrapCallback(
+              null,
+              new ExistsResult({
+                cas: undefined,
+                exists: false,
+              })
+            )
+          }
+
+          wrapCallback(
+            null,
+            new ExistsResult({
+              cas: resp.cas,
+              exists: resp.document_exists,
+            })
+          )
+        }
+      )
+    }, callback)
+  }
+
+  /**
    * Retrieves the value of a document from the collection.
    *
    * @param key The document key to retrieve.
@@ -229,6 +289,160 @@ export class Collection {
         }
       )
     }, callback)
+  }
+
+  /**
+   * @internal
+   */
+  _getReplica(
+    key: string,
+    getAllReplicas: boolean,
+    options?: {
+      transcoder?: Transcoder
+      timeout?: number
+    },
+    callback?: NodeCallback<GetReplicaResult[]>
+  ): StreamableReplicasPromise<GetReplicaResult[], GetReplicaResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const emitter = new StreamableReplicasPromise<
+      GetReplicaResult[],
+      GetReplicaResult
+    >((replicas: GetReplicaResult[]) => replicas)
+
+    const transcoder = options.transcoder || this.transcoder
+    const timeout = options.timeout || this.cluster.kvTimeout
+
+    if (getAllReplicas) {
+      this._conn.getAllReplicas(
+        {
+          id: this._cppDocId(key),
+          timeout: timeout,
+        },
+        (cppErr, resp) => {
+          const err = errorFromCpp(cppErr)
+          if (err) {
+            emitter.emit('error', err)
+            emitter.emit('end')
+            return
+          }
+
+          resp.entries.forEach((replica) => {
+            this._decodeDoc(
+              transcoder,
+              replica.value,
+              replica.flags,
+              (err, content) => {
+                if (err) {
+                  emitter.emit('error', err)
+                  emitter.emit('end')
+                  return
+                }
+
+                emitter.emit(
+                  'replica',
+                  new GetReplicaResult({
+                    content: content,
+                    cas: replica.cas,
+                    isReplica: replica.replica,
+                  })
+                )
+              }
+            )
+          })
+
+          emitter.emit('end')
+          return
+        }
+      )
+    } else {
+      this._conn.getAnyReplica(
+        {
+          id: this._cppDocId(key),
+          timeout: timeout,
+        },
+        (cppErr, resp) => {
+          const err = errorFromCpp(cppErr)
+          if (err) {
+            emitter.emit('error', err)
+            emitter.emit('end')
+            return
+          }
+
+          this._decodeDoc(
+            transcoder,
+            resp.value,
+            resp.flags,
+            (err, content) => {
+              if (err) {
+                emitter.emit('error', err)
+                emitter.emit('end')
+                return
+              }
+
+              emitter.emit(
+                'replica',
+                new GetReplicaResult({
+                  content: content,
+                  cas: resp.cas,
+                  isReplica: resp.replica,
+                })
+              )
+            }
+          )
+
+          emitter.emit('end')
+          return
+        }
+      )
+    }
+
+    return PromiseHelper.wrapAsync(() => emitter, callback)
+  }
+
+  /**
+   * Retrieves the value of the document from any of the available replicas.  This
+   * will return as soon as the first response is received from any replica node.
+   *
+   * @param key The document key to retrieve.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  getAnyReplica(
+    key: string,
+    options?: GetAnyReplicaOptions,
+    callback?: NodeCallback<GetReplicaResult>
+  ): Promise<GetReplicaResult> {
+    if (options instanceof Function) {
+      callback = arguments[1]
+      options = undefined
+    }
+    return PromiseHelper.wrapAsync(async () => {
+      const replicas = await this._getReplica(key, false, options)
+      return replicas[0]
+    }, callback)
+  }
+
+  /**
+   * Retrieves the value of the document from all available replicas.  Note that
+   * as replication is asynchronous, each node may return a different value.
+   *
+   * @param key The document key to retrieve.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  getAllReplicas(
+    key: string,
+    options?: GetAllReplicasOptions,
+    callback?: NodeCallback<GetReplicaResult[]>
+  ): Promise<GetReplicaResult[]> {
+    return this._getReplica(key, true, options, callback)
   }
 
   /**
@@ -566,4 +780,227 @@ export class Collection {
       }
     }, callback)
   }
+
+  /**
+   * Retrieves the value of the document and simultanously updates the expiry time
+   * for the same document.
+   *
+   * @param key The document to fetch and touch.
+   * @param expiry The new expiry to apply to the document, specified in seconds.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  getAndTouch(
+    key: string,
+    expiry: number,
+    options?: GetAndTouchOptions,
+    callback?: NodeCallback<GetResult>
+  ): Promise<GetResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const transcoder = options.transcoder || this.transcoder
+    const timeout = options.timeout || this.cluster.kvTimeout
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._conn.getAndTouch(
+        {
+          id: this._cppDocId(key),
+          expiry,
+          timeout,
+          partition: 0,
+          opaque: 0,
+        },
+        (cppErr, resp) => {
+          const err = errorFromCpp(cppErr)
+          if (err) {
+            return wrapCallback(err, null)
+          }
+
+          this._decodeDoc(
+            transcoder,
+            resp.value,
+            resp.flags,
+            (err, content) => {
+              if (err) {
+                return wrapCallback(err, null)
+              }
+
+              wrapCallback(
+                err,
+                new GetResult({
+                  content: content,
+                  cas: resp.cas,
+                })
+              )
+            }
+          )
+        }
+      )
+    }, callback)
+  }
+
+  /**
+   * Updates the expiry on an existing document.
+   *
+   * @param key The document key to touch.
+   * @param expiry The new expiry to set for the document, specified in seconds.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  touch(
+    key: string,
+    expiry: number,
+    options?: TouchOptions,
+    callback?: NodeCallback<MutationResult>
+  ): Promise<MutationResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const timeout = options.timeout || this.cluster.kvTimeout
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._conn.touch(
+        {
+          id: this._cppDocId(key),
+          expiry,
+          timeout,
+          partition: 0,
+          opaque: 0,
+        },
+        (cppErr, resp) => {
+          const err = errorFromCpp(cppErr)
+          if (err) {
+            return wrapCallback(err, null)
+          }
+
+          wrapCallback(
+            err,
+            new MutationResult({
+              cas: resp.cas,
+            })
+          )
+        }
+      )
+    }, callback)
+  }
+
+  /**
+   * Locks a document and retrieves the value of that document at the time it is locked.
+   *
+   * @param key The document key to retrieve and lock.
+   * @param lockTime The amount of time to lock the document for, specified in seconds.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  getAndLock(
+    key: string,
+    lockTime: number,
+    options?: GetAndLockOptions,
+    callback?: NodeCallback<GetResult>
+  ): Promise<GetResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const transcoder = options.transcoder || this.transcoder
+    const timeout = options.timeout || this.cluster.kvTimeout
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._conn.getAndLock(
+        {
+          id: this._cppDocId(key),
+          lock_time: lockTime,
+          timeout,
+          partition: 0,
+          opaque: 0,
+        },
+        (cppErr, resp) => {
+          const err = errorFromCpp(cppErr)
+          if (err) {
+            return wrapCallback(err, null)
+          }
+
+          this._decodeDoc(
+            transcoder,
+            resp.value,
+            resp.flags,
+            (err, content) => {
+              if (err) {
+                return wrapCallback(err, null)
+              }
+
+              wrapCallback(
+                err,
+                new GetResult({
+                  cas: resp.cas,
+                  content: content,
+                })
+              )
+            }
+          )
+        }
+      )
+    }, callback)
+  }
+
+  /**
+   * Unlocks a previously locked document.
+   *
+   * @param key The document key to unlock.
+   * @param cas The CAS of the document, used to validate lock ownership.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  unlock(
+    key: string,
+    cas: Cas | any,
+    options?: UnlockOptions,
+    callback?: NodeCallback<void>
+  ): Promise<void> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const timeout = options.timeout || this.cluster.kvTimeout
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._conn.unlock(
+        {
+          id: this._cppDocId(key),
+          cas: cas as Cas,
+          timeout,
+          partition: 0,
+          opaque: 0,
+        },
+        (cppErr) => {
+          const err = errorFromCpp(cppErr)
+          if (err) {
+            return wrapCallback(err)
+          }
+
+          wrapCallback(null)
+        }
+      )
+    }, callback)
+  }
+
 }

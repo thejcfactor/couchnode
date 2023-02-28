@@ -1,5 +1,6 @@
 import { ChannelCredentials } from '@grpc/grpc-js';
-import { DocumentContentTypeMap, GetRequest, GetResponse, InsertRequest, InsertResponse, UpsertRequest, UpsertResponse, RemoveRequest, RemoveResponse, ReplaceRequest, ReplaceResponse} from "./generated/couchbase/kv.v1_pb"
+import { Timestamp } from 'google-protobuf/google/protobuf/timestamp_pb';
+import { DocumentContentTypeMap, ExistsRequest, ExistsResponse, GetAndLockRequest, GetAndTouchRequest, GetRequest, GetResponse, InsertRequest, InsertResponse, UpsertRequest, UpsertResponse, RemoveRequest, RemoveResponse, ReplaceRequest, ReplaceResponse, TouchRequest, TouchResponse, UnlockRequest, UnlockResponse} from "./generated/couchbase/kv.v1_pb"
 import { KvClient } from './generated/couchbase/kv.v1_grpc_pb'
 
 import { ApiImplementation } from '../generaltypes'
@@ -8,8 +9,8 @@ import { Cluster } from './cluster'
 import { Scope } from './scope'
 import {
   // CounterResult,
-  // ExistsResult,
-  // GetReplicaResult,
+  ExistsResult,
+  GetReplicaResult,
   GetResult,
   // LookupInResult,
   // LookupInResultEntry,
@@ -19,9 +20,11 @@ import {
 } from '../crudoptypes'
 
 import { Transcoder } from '../transcoders'
-import { GetOptions, InsertOptions, RemoveOptions, ReplaceOptions, UpsertOptions } from '../collection'
-import { NodeCallback, PromiseHelper } from '../utilities'
+import { ExistsOptions, GetAllReplicasOptions, GetAndLockOptions, GetAndTouchOptions, GetAnyReplicaOptions, GetOptions, InsertOptions, RemoveOptions, ReplaceOptions, TouchOptions, UnlockOptions, UpsertOptions } from '../collection'
+import { expiryToTimestamp, NodeCallback, PromiseHelper } from '../utilities'
+import { StreamableReplicasPromise } from '../streamablepromises'
 import { MutationToken } from './mutationstate'
+import exp from 'constants';
 
 /**
  * Exposes the operations which are available to be performed against a collection.
@@ -39,7 +42,7 @@ export class Collection {
 
   private _scope: Scope
   private _name: string
-  private _conn: ChannelCredentials
+  private _channel: ChannelCredentials
   private _kvService: KvClient
 
   /**
@@ -48,8 +51,8 @@ export class Collection {
   constructor(scope: Scope, collectionName: string) {
     this._scope = scope
     this._name = collectionName
-    this._conn = scope.conn
-    this._kvService = new KvClient(this.cluster.connStr, this.conn)
+    this._channel = scope.channel
+    this._kvService = new KvClient(this.cluster.connStr, this.channel)
   }
 
   get apiImplementation(): ApiImplementation {
@@ -59,8 +62,8 @@ export class Collection {
   /**
   @internal
   */
-  get conn(): ChannelCredentials {
-    return this._conn
+  get channel(): ChannelCredentials {
+    return this._channel
   }
 
   /**
@@ -125,6 +128,55 @@ export class Collection {
     return this._name
   }
 
+  /**
+   * Checks whether a specific document exists or not.
+   *
+   * @param key The document key to check for existence.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  exists(
+    key: string,
+    options?: ExistsOptions,
+    callback?: NodeCallback<ExistsResult>
+  ): Promise<ExistsResult> {
+    if (options instanceof Function) {
+      callback = arguments[1]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
+
+    const req = new ExistsRequest()
+    req.setKey(key)
+    req.setBucketName(this._scope.bucket.name)
+    req.setScopeName(this._scope.name)
+    req.setCollectionName(this.name)
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._kvService.get(
+        req,
+        {deadline: deadline},
+        (err: Error | null, resp: ExistsResponse) => {
+          if (err) {
+            return wrapCallback(err, null)
+          }
+
+          wrapCallback(
+            null,
+            new ExistsResult({
+              cas: resp.getCas(),
+              exists: resp.getResult(),
+            })
+          )
+        }
+      )
+    }, callback)
+  }
+
   get(
     key: string,
     options?: GetOptions,
@@ -139,6 +191,7 @@ export class Collection {
     }
 
     const transcoder = options.transcoder || this.transcoder
+    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
     const req = new GetRequest()
     req.setKey(key)
     req.setBucketName(this._scope.bucket.name)
@@ -148,6 +201,7 @@ export class Collection {
     return PromiseHelper.wrap((wrapCallback) => {
       this._kvService.get(
         req,
+        {deadline: deadline},
         (err: Error | null, resp: GetResponse) => {
           if (err) {
             return wrapCallback(err, null)
@@ -177,6 +231,79 @@ export class Collection {
     }, callback)
   }
 
+  /**
+   * @internal
+   */
+  _getReplica(
+    key: string,
+    getAllReplicas: boolean,
+    options?: {
+      transcoder?: Transcoder
+      timeout?: number
+    },
+    callback?: NodeCallback<GetReplicaResult[]>
+  ): StreamableReplicasPromise<GetReplicaResult[], GetReplicaResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const emitter = new StreamableReplicasPromise<
+      GetReplicaResult[],
+      GetReplicaResult
+    >((replicas: GetReplicaResult[]) => replicas)
+
+    const transcoder = options.transcoder || this.transcoder
+    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
+
+    // @TODO(jc): implement replica reads when available.
+
+    return PromiseHelper.wrapAsync(() => emitter, callback)
+  }
+
+
+  /**
+   * Retrieves the value of the document from any of the available replicas.  This
+   * will return as soon as the first response is received from any replica node.
+   *
+   * @param key The document key to retrieve.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  getAnyReplica(
+    key: string,
+    options?: GetAnyReplicaOptions,
+    callback?: NodeCallback<GetReplicaResult>
+  ): Promise<GetReplicaResult> {
+    if (options instanceof Function) {
+      callback = arguments[1]
+      options = undefined
+    }
+    return PromiseHelper.wrapAsync(async () => {
+      const replicas = await this._getReplica(key, false, options)
+      return replicas[0]
+    }, callback)
+  }
+
+  /**
+   * Retrieves the value of the document from all available replicas.  Note that
+   * as replication is asynchronous, each node may return a different value.
+   *
+   * @param key The document key to retrieve.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  getAllReplicas(
+    key: string,
+    options?: GetAllReplicasOptions,
+    callback?: NodeCallback<GetReplicaResult[]>
+  ): Promise<GetReplicaResult[]> {
+    return this._getReplica(key, true, options, callback)
+  }
+
   insert(
     key: string,
     value: any,
@@ -192,6 +319,7 @@ export class Collection {
     }
 
     const transcoder = options.transcoder || this.transcoder
+    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
     const req = new InsertRequest()
     req.setKey(key)
     req.setBucketName(this._scope.bucket.name)
@@ -207,6 +335,7 @@ export class Collection {
         req.setContentType(contentType)
         this._kvService.insert(
           req,
+          {deadline: deadline},
           (err: Error | null, resp: InsertResponse) => {
             if (err) {
               return wrapCallback(err, null)
@@ -233,6 +362,7 @@ export class Collection {
     }
 
     const transcoder = options.transcoder || this.transcoder
+    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
     const req = new UpsertRequest()
     req.setKey(key)
     req.setBucketName(this._scope.bucket.name)
@@ -248,6 +378,7 @@ export class Collection {
         req.setContentType(contentType)
         this._kvService.upsert(
           req,
+          {deadline: deadline},
           (err: Error | null, resp: UpsertResponse) => {
             if (err) {
               return wrapCallback(err, null)
@@ -275,6 +406,7 @@ export class Collection {
 
     const cas = options.cas
     const transcoder = options.transcoder || this.transcoder
+    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
     const req = new ReplaceRequest()
     req.setKey(key)
     req.setBucketName(this._scope.bucket.name)
@@ -295,6 +427,7 @@ export class Collection {
         req.setContentType(contentType)
         this._kvService.replace(
           req,
+          {deadline: deadline},
           (err: Error | null, resp: ReplaceResponse) => {
             if (err) {
               return wrapCallback(err, null)
@@ -320,6 +453,7 @@ export class Collection {
     }
 
     const cas = options.cas
+    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
     const req = new RemoveRequest()
     req.setKey(key)
     req.setBucketName(this._scope.bucket.name)
@@ -332,6 +466,7 @@ export class Collection {
       }
       this._kvService.remove(
         req,
+        {deadline: deadline},
         (err: Error | null, resp: RemoveResponse) => {
           if (err) {
             return wrapCallback(err, null)
@@ -341,4 +476,225 @@ export class Collection {
       )
     }, callback)
   }
+
+  /**
+   * Retrieves the value of the document and simultanously updates the expiry time
+   * for the same document.
+   *
+   * @param key The document to fetch and touch.
+   * @param expiry The new expiry to apply to the document, specified in seconds.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  getAndTouch(
+    key: string,
+    expiry: number,
+    options?: GetAndTouchOptions,
+    callback?: NodeCallback<GetResult>
+  ): Promise<GetResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const transcoder = options.transcoder || this.transcoder
+    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
+
+    const req = new GetAndTouchRequest()
+    req.setKey(key)
+    req.setBucketName(this._scope.bucket.name)
+    req.setScopeName(this._scope.name)
+    req.setCollectionName(this.name)
+    req.setExpiry(expiryToTimestamp(expiry))
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._kvService.getAndTouch(
+        req,
+        {deadline: deadline},
+        (err: Error | null, resp: GetResponse) => {
+          if (err) {
+            return wrapCallback(err, null)
+          }
+
+          this._decodeDoc(
+            transcoder,
+            resp.getContent(),
+            resp.getContentType(),
+            (err, content) => {
+              if (err) {
+                return wrapCallback(err, null)
+              }
+
+              wrapCallback(
+                null,
+                new GetResult({
+                  content: content,
+                  cas: resp.getCas(),
+                  expiryTime:resp.getExpiry()?.getSeconds()
+                })
+              )
+            }
+          )
+        }
+      )
+    }, callback)
+  }
+
+  /**
+   * Updates the expiry on an existing document.
+   *
+   * @param key The document key to touch.
+   * @param expiry The new expiry to set for the document, specified in seconds.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  touch(
+    key: string,
+    expiry: number,
+    options?: TouchOptions,
+    callback?: NodeCallback<MutationResult>
+  ): Promise<MutationResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
+    const req = new TouchRequest()
+    req.setKey(key)
+    req.setBucketName(this._scope.bucket.name)
+    req.setScopeName(this._scope.name)
+    req.setCollectionName(this.name)
+    req.setExpiry(expiryToTimestamp(expiry))
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._kvService.touch(
+        req,
+        {deadline: deadline},
+        (err: Error | null, resp: TouchResponse) => {
+          if (err) {
+            return wrapCallback(err, null)
+          }
+          return wrapCallback(null, new MutationResult({cas:resp.getCas(), token:MutationToken.fromResponse(resp.getMutationToken())}))
+        }
+      )
+    }, callback)
+  }
+
+  /**
+   * Locks a document and retrieves the value of that document at the time it is locked.
+   *
+   * @param key The document key to retrieve and lock.
+   * @param lockTime The amount of time to lock the document for, specified in seconds.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  getAndLock(
+    key: string,
+    lockTime: number,
+    options?: GetAndLockOptions,
+    callback?: NodeCallback<GetResult>
+  ): Promise<GetResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const transcoder = options.transcoder || this.transcoder
+    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
+
+    const req = new GetAndLockRequest()
+    req.setKey(key)
+    req.setBucketName(this._scope.bucket.name)
+    req.setScopeName(this._scope.name)
+    req.setCollectionName(this.name)
+    req.setLockTime(lockTime)
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._kvService.getAndLock(
+        req,
+        {deadline: deadline},
+        (err: Error | null, resp: GetResponse) => {
+          if (err) {
+            return wrapCallback(err, null)
+          }
+
+          this._decodeDoc(
+            transcoder,
+            resp.getContent(),
+            resp.getContentType(),
+            (err, content) => {
+              if (err) {
+                return wrapCallback(err, null)
+              }
+
+              wrapCallback(
+                null,
+                new GetResult({
+                  content: content,
+                  cas: resp.getCas(),
+                  expiryTime:resp.getExpiry()?.getSeconds()
+                })
+              )
+            }
+          )
+        }
+      )
+    }, callback)
+  }
+
+  /**
+   * Unlocks a previously locked document.
+   *
+   * @param key The document key to unlock.
+   * @param cas The CAS of the document, used to validate lock ownership.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  unlock(
+    key: string,
+    cas: any,
+    options?: UnlockOptions,
+    callback?: NodeCallback<void>
+  ): Promise<void> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
+
+    const req = new UnlockRequest()
+    req.setKey(key)
+    req.setBucketName(this._scope.bucket.name)
+    req.setScopeName(this._scope.name)
+    req.setCollectionName(this.name)
+    req.setCas(cas as number)
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._kvService.unlock(
+        req,
+        {deadline: deadline},
+        (err: Error | null, resp: UnlockResponse) => {
+          if (err) {
+            return wrapCallback(err, null)
+          }
+          return wrapCallback(null)
+        }
+      )
+    }, callback)
+  }
+
 }

@@ -6,7 +6,7 @@ import { ApiImplementation } from './generaltypes'
 import { DurabilityLevel, StoreSemantics } from './generaltypes'
 import {
   // CounterResult,
-  // ExistsResult,
+  ExistsResult,
   // GetReplicaResult,
   GetResult,
   // LookupInResult,
@@ -225,6 +225,91 @@ export interface RemoveOptions {
 }
 
 /**
+ * @category Key-Value
+ */
+export interface GetAnyReplicaOptions {
+  /**
+   * Specifies an explicit transcoder to use for this specific operation.
+   */
+  transcoder?: Transcoder
+
+  /**
+   * The timeout for this operation, represented in milliseconds.
+   */
+  timeout?: number
+}
+
+/**
+ * @category Key-Value
+ */
+export interface GetAllReplicasOptions {
+  /**
+   * Specifies an explicit transcoder to use for this specific operation.
+   */
+  transcoder?: Transcoder
+
+  /**
+   * The timeout for this operation, represented in milliseconds.
+   */
+  timeout?: number
+}
+
+/**
+ * @category Key-Value
+ */
+export interface TouchOptions {
+  /**
+   * Specifies the level of synchronous durability for this operation.
+   */
+  durabilityLevel?: DurabilityLevel
+
+  /**
+   * The timeout for this operation, represented in milliseconds.
+   */
+  timeout?: number
+}
+
+/**
+ * @category Key-Value
+ */
+export interface GetAndTouchOptions {
+  /**
+   * Specifies an explicit transcoder to use for this specific operation.
+   */
+  transcoder?: Transcoder
+
+  /**
+   * The timeout for this operation, represented in milliseconds.
+   */
+  timeout?: number
+}
+
+/**
+ * @category Key-Value
+ */
+export interface GetAndLockOptions {
+  /**
+   * Specifies an explicit transcoder to use for this specific operation.
+   */
+  transcoder?: Transcoder
+
+  /**
+   * The timeout for this operation, represented in milliseconds.
+   */
+  timeout?: number
+}
+
+/**
+ * @category Key-Value
+ */
+export interface UnlockOptions {
+  /**
+   * The timeout for this operation, represented in milliseconds.
+   */
+  timeout?: number
+}
+
+/**
  * Exposes the operations which are available to be performed against a collection.
  * Namely the ability to perform KV operations.
  *
@@ -253,6 +338,21 @@ export class Collection {
 
   get apiImplementation(): ApiImplementation {
     return this._impl.scope.apiImplementation
+  }
+
+  /**
+   * Checks whether a specific document exists or not.
+   *
+   * @param key The document key to check for existence.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  exists(
+    key: string,
+    options?: ExistsOptions,
+    callback?: NodeCallback<ExistsResult>
+  ): Promise<ExistsResult> {
+    return this._impl.exists(key, options, callback)
   }
 
   /**
@@ -336,4 +436,73 @@ export class Collection {
   ): Promise<MutationResult> {
     return this._impl.remove(key, options, callback)
   }
+
+  /**
+   * Retrieves the value of the document and simultanously updates the expiry time
+   * for the same document.
+   *
+   * @param key The document to fetch and touch.
+   * @param expiry The new expiry to apply to the document, specified in seconds.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  getAndTouch(
+    key: string,
+    expiry: number,
+    options?: GetAndTouchOptions,
+    callback?: NodeCallback<GetResult>
+  ): Promise<GetResult> {
+    return this._impl.getAndTouch(key, expiry, options, callback)
+  }
+
+  /**
+   * Updates the expiry on an existing document.
+   *
+   * @param key The document key to touch.
+   * @param expiry The new expiry to set for the document, specified in seconds.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  touch(
+    key: string,
+    expiry: number,
+    options?: TouchOptions,
+    callback?: NodeCallback<MutationResult>
+  ): Promise<MutationResult> {
+    return this._impl.getAndTouch(key, expiry, options, callback)
+  }
+
+  /**
+   * Locks a document and retrieves the value of that document at the time it is locked.
+   *
+   * @param key The document key to retrieve and lock.
+   * @param lockTime The amount of time to lock the document for, specified in seconds.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  getAndLock(
+    key: string,
+    lockTime: number,
+    options?: GetAndLockOptions,
+    callback?: NodeCallback<GetResult>
+  ): Promise<GetResult> {
+    return this._impl.getAndLock(key, lockTime, options, callback)
+  }
+
+  /**
+   * Unlocks a previously locked document.
+   *
+   * @param key The document key to unlock.
+   * @param cas The CAS of the document, used to validate lock ownership.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  unlock(
+    key: string,
+    cas: Cas | number,
+    options?: UnlockOptions,
+    callback?: NodeCallback<void>
+  ): Promise<void> {
+    return this._impl.unlock(key, (cas as number), options, callback)
+  }  
 }
