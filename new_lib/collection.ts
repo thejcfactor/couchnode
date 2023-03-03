@@ -9,9 +9,8 @@ import { ApiImplementation } from './generaltypes'
 import { DurabilityLevel, StoreSemantics } from './generaltypes'
 import { LookupInSpec, MutateInSpec } from './sdspecs'
 import {
-  // CounterResult,
   ExistsResult,
-  // GetReplicaResult,
+  GetReplicaResult,
   GetResult,
   LookupInResult,
   MutateInResult,
@@ -457,6 +456,38 @@ export class Collection {
     return this._impl.get(key, options, callback)
   }
 
+  /**
+   * Retrieves the value of the document from any of the available replicas.  This
+   * will return as soon as the first response is received from any replica node.
+   *
+   * @param key The document key to retrieve.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  getAnyReplica(
+    key: string,
+    options?: GetAnyReplicaOptions,
+    callback?: NodeCallback<GetReplicaResult>
+  ): Promise<GetReplicaResult> {
+    return this._impl.getAnyReplica(key, options, callback)
+  }
+
+  /**
+   * Retrieves the value of the document from all available replicas.  Note that
+   * as replication is asynchronous, each node may return a different value.
+   *
+   * @param key The document key to retrieve.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  getAllReplicas(
+    key: string,
+    options?: GetAllReplicasOptions,
+    callback?: NodeCallback<GetReplicaResult[]>
+  ): Promise<GetReplicaResult[]> {
+    return this._impl.getAllReplicas(key, options, callback)
+  }
+  
   /**
    * Inserts a new document to the collection, failing if the document already exists.
    *
