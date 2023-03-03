@@ -1,7 +1,13 @@
 // import { AnalyticsScanConsistency, AnalyticsStatus } from './analyticstypes'
+import { EndpointState, PingState } from '../diagnosticstypes'
+import { ErrorContext } from '../errorcontexts'
+import * as errctxs from '../errorcontexts'
+import * as errs from '../errors'
+import { DurabilityLevel, ServiceType, StoreSemantics } from '../generaltypes'
+import { QueryProfileMode, QueryScanConsistency } from '../querytypes'
 import binding, {
-  CppAnalyticsScanConsistency,
-  CppAnalyticsResponseAnalyticsStatus,
+  // CppAnalyticsScanConsistency,
+  // CppAnalyticsResponseAnalyticsStatus,
   CppDurabilityLevel,
   CppDiagEndpointState,
   CppMutationState,
@@ -9,24 +15,19 @@ import binding, {
   CppDiagPingState,
   CppQueryProfile,
   CppQueryScanConsistency,
-  CppSearchHighlightStyle,
-  CppSearchScanConsistency,
+  // CppSearchHighlightStyle,
+  // CppSearchScanConsistency,
   CppServiceType,
   CppStoreSemantics,
   CppTxnExternalException,
-  CppViewScanConsistency,
-  CppViewSortOrder,
+  // CppViewScanConsistency,
+  // CppViewSortOrder,
   CppPersistTo,
   CppReplicateTo,
 } from './binding'
 import { CppError } from './binding'
-import { EndpointState, PingState } from '../diagnosticstypes'
-import { ErrorContext } from '../errorcontexts'
-import * as errctxs from '../errorcontexts'
-import * as errs from '../errors'
-import { DurabilityLevel, ServiceType, StoreSemantics } from '../generaltypes'
 import { MutationState } from './mutationstate'
-import { QueryProfileMode, QueryScanConsistency } from '../querytypes'
+
 // import { SearchScanConsistency, HighlightStyle } from './searchtypes'
 // import { ViewOrdering, ViewScanConsistency } from './viewtypes'
 

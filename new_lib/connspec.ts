@@ -1,9 +1,10 @@
 import { ApiImplementation } from './generaltypes'
+
 /* eslint jsdoc/require-jsdoc: off */
 import * as qs from 'querystring'
 
-
-const partsMatcher = /((.*):\/\/)?(([^/?:]*)(:([^/?:@]*))?@)?([^/?]*)(\/([^?]*))?(\?(.*))?/
+const partsMatcher =
+  /((.*):\/\/)?(([^/?:]*)(:([^/?:@]*))?@)?([^/?]*)(\/([^?]*))?(\?(.*))?/
 const hostMatcher = /((\[[^\]]+\]+)|([^;,:]+))(:([0-9]*))?(;,)?/g
 const kvMatcher = /([^=]*)=([^&?]*)[&?]?/g
 
@@ -16,8 +17,10 @@ export class ConnSpec {
   options: { [key: string]: string | string[] }
 
   constructor(data?: Partial<ConnSpec>, api = ApiImplementation.Classic) {
-    this.scheme =  api == ApiImplementation.Classic ? 'couchbase' : 'protostellar'
-    const defaultPort = api == ApiImplementation.Classic ? 0 : defaultProtostellarTlsPort
+    this.scheme =
+      api == ApiImplementation.Classic ? 'couchbase' : 'protostellar'
+    const defaultPort =
+      api == ApiImplementation.Classic ? 0 : defaultProtostellarTlsPort
     this.hosts = [['localhost', defaultPort]]
     this.bucket = ''
     this.options = {}
@@ -42,7 +45,8 @@ export class ConnSpec {
     if (parts[2]) {
       spec.scheme = parts[2]
     } else {
-      spec.scheme = api == ApiImplementation.Classic ? 'couchbase' : 'protostellar'
+      spec.scheme =
+        api == ApiImplementation.Classic ? 'couchbase' : 'protostellar'
     }
 
     if (parts[7]) {
@@ -53,7 +57,8 @@ export class ConnSpec {
         if (!hostMatch) {
           break
         }
-        const defaultPort = api == ApiImplementation.Classic ? 0 : defaultProtostellarTlsPort
+        const defaultPort =
+          api == ApiImplementation.Classic ? 0 : defaultProtostellarTlsPort
         spec.hosts.push([
           hostMatch[1],
           hostMatch[5] ? parseInt(hostMatch[5], 10) : defaultPort,

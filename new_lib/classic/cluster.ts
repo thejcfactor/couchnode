@@ -3,21 +3,18 @@ import {
   PasswordAuthenticator,
   CertificateAuthenticator,
 } from '../authenticators'
-import { ApiImplementation } from '../generaltypes'
-import binding, { CppConnection } from './binding'
-import { errorFromCpp } from './bindingutilities'
-import { ConnSpec } from '../connspec'
-import { ConnectOptions, DnsConfig } from '../cluster'
-import { Transcoder, DefaultTranscoder } from '../transcoders'
-
-import { PromiseHelper, NodeCallback } from '../utilities'
-import { generateClientString } from '../utilities_internal'
-
 import { Bucket } from '../bucket'
-
-import { QueryExecutor } from './queryexecutor'
+import { ConnectOptions, DnsConfig } from '../cluster'
+import { ConnSpec } from '../connspec'
+import { ApiImplementation } from '../generaltypes'
 import { QueryMetaData, QueryOptions, QueryResult } from '../querytypes'
 import { StreamableRowPromise } from '../streamablepromises'
+import { Transcoder, DefaultTranscoder } from '../transcoders'
+import { PromiseHelper, NodeCallback } from '../utilities'
+import { generateClientString } from '../utilities_internal'
+import binding, { CppConnection } from './binding'
+import { errorFromCpp } from './bindingutilities'
+import { QueryExecutor } from './queryexecutor'
 
 /**
  * Exposes the operations which are available to be performed against a cluster.
@@ -45,6 +42,10 @@ export class Cluster {
   private _openBuckets: string[]
   private _dnsConfig: DnsConfig | null
 
+
+  /**
+   * The API implementation for this Cluster object.
+   */
   get apiImplementation(): ApiImplementation {
     return this._apiImplementation
   }
@@ -269,11 +270,14 @@ export class Cluster {
     }, callback)
   }
 
-  async _connectHelper(){
+  /**
+   * @internal
+   */
+  async _connectHelper(): Promise<Error | null> {
     return this._connect()
   }
 
-  private async _connect() {
+  private async _connect(): Promise<Error | null> {
     return new Promise((resolve, reject) => {
       const dsnObj = ConnSpec.parse(this._connStr)
 

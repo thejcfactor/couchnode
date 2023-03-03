@@ -1,16 +1,21 @@
-import { ChannelCredentials } from '@grpc/grpc-js';
-import { QueryClient } from './generated/couchbase/query.v1_grpc_pb';
-import { ApiImplementation } from '../generaltypes'
-import { Bucket } from './bucket'
-import { Cluster } from './cluster'
 import { Collection } from '../collection'
-
-import { QueryExecutor } from './queryexecutor'
+import { ApiImplementation } from '../generaltypes'
 import { QueryMetaData, QueryOptions, QueryResult } from '../querytypes'
 import { StreamableRowPromise } from '../streamablepromises'
 import { Transcoder } from '../transcoders'
 import { NodeCallback, PromiseHelper } from '../utilities'
+import { Bucket } from './bucket'
+import { Cluster } from './cluster'
+import { QueryClient } from './generated/couchbase/query.v1_grpc_pb'
+import { QueryExecutor } from './queryexecutor'
+import { ChannelCredentials } from '@grpc/grpc-js'
 
+/**
+ * Exposes the operations which are available to be performed against a scope.
+ * Namely the ability to access to Collections for performing operations.
+ *
+ * @category Core
+ */
 export class Scope {
   /**
    * @internal
@@ -34,6 +39,9 @@ export class Scope {
     // this._queryService = new QueryClient(this._bucket.cluster.connStr, this.conn)
   }
 
+  /**
+   * The API implementation for this Scope object.
+   */
   get apiImplementation(): ApiImplementation {
     return this._bucket.apiImplementation
   }
@@ -110,7 +118,12 @@ export class Scope {
     }
 
     const bucket = this.bucket
-    const exec = new QueryExecutor(this.queryService, this.bucket.name, this.name)
+    const exec = new QueryExecutor(
+      this.queryService,
+      this.cluster.queryTimeout,
+      this.bucket.name,
+      this.name
+    )
 
     const options_ = options
     return PromiseHelper.wrapAsync(
@@ -122,5 +135,4 @@ export class Scope {
       callback
     )
   }
-
 }

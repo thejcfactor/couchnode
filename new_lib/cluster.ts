@@ -1,20 +1,19 @@
 import {
   Authenticator,
-  PasswordAuthenticator,
-  CertificateAuthenticator,
+  // PasswordAuthenticator,
+  // CertificateAuthenticator,
 } from './authenticators'
-import { ApiImplementation } from './generaltypes'
-import { Transcoder, DefaultTranscoder } from './transcoders'
-import { PromiseHelper, NodeCallback } from './utilities'
-
-import {Cluster as ClassicCluster} from './classic/cluster'
-import {Cluster as ProtostellarCluster} from './protostellar/cluster'
-
 import { Bucket } from './bucket'
-
+import { Cluster as ClassicCluster } from './classic/cluster'
+import { ApiImplementation } from './generaltypes'
+import { Cluster as ProtostellarCluster } from './protostellar/cluster'
 import { QueryMetaData, QueryOptions, QueryResult } from './querytypes'
 import { StreamableRowPromise } from './streamablepromises'
-
+import {
+  Transcoder,
+  // DefaultTranscoder,
+} from './transcoders'
+import { PromiseHelper, NodeCallback } from './utilities'
 
 /**
  * Specifies the timeout options for the client.
@@ -159,18 +158,21 @@ export interface ConnectOptions {
 export class Cluster {
   private _impl: ClassicCluster | ProtostellarCluster
 
-    /**
+  /**
   @internal
   @deprecated Use the static sdk-level {@link connect} method instead.
   */
   constructor(connStr: string, options?: ConnectOptions) {
-    if(connStr.startsWith('protostellar://')){
+    if (connStr.startsWith('protostellar://')) {
       this._impl = new ProtostellarCluster(connStr, options)
     } else {
       this._impl = new ClassicCluster(connStr, options)
     }
   }
 
+  /**
+   * The API implementation for this Cluster object.
+   */
   get apiImplementation(): ApiImplementation {
     return this._impl.apiImplementation
   }
@@ -184,13 +186,16 @@ export class Cluster {
     return this._impl.close(callback)
   }
 
-  private async _connect() {
+  /**
+   * @internal
+   */
+  private async _connect(): Promise<Error | null> {
     return this._impl._connectHelper()
   }
 
   /**
-  @internal
-  */
+   * @internal
+   */
   static async connect(
     connStr: string,
     options?: ConnectOptions,
@@ -226,5 +231,4 @@ export class Cluster {
   ): StreamableRowPromise<QueryResult<TRow>, TRow, QueryMetaData> {
     return this._impl.query(statement, options, callback)
   }
-
 }

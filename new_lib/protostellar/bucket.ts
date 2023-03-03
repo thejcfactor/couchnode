@@ -1,10 +1,9 @@
-import { ChannelCredentials } from '@grpc/grpc-js';
-import { Cluster } from './cluster'
-import { Transcoder } from '../transcoders'
-import { ApiImplementation } from '../generaltypes'
-
 import { Collection } from '../collection'
+import { ApiImplementation } from '../generaltypes'
 import { Scope } from '../scope'
+import { Transcoder } from '../transcoders'
+import { Cluster } from './cluster'
+import { ChannelCredentials } from '@grpc/grpc-js'
 
 /**
  * Exposes the operations which are available to be performed against a bucket.
@@ -70,14 +69,14 @@ export class Bucket {
   scope(scopeName: string): Scope {
     return new Scope(this, scopeName)
   }
-  
+
   /**
    * Creates a Scope object reference to the default scope.
    */
   defaultScope(): Scope {
     return this.scope(Scope.DEFAULT_NAME)
   }
-  
+
   /**
    * Creates a Collection object reference to a specific collection.
    *
@@ -87,7 +86,7 @@ export class Bucket {
     const scope = this.defaultScope()
     return scope.collection(collectionName)
   }
-  
+
   /**
    * Creates a Collection object reference to the default collection.
    */

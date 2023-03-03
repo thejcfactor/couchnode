@@ -1,11 +1,26 @@
-import { LookupInRequest, MutateInRequest } from './generated/couchbase/kv.v1_pb'
 import { LookupInSpec, MutateInSpec, SubdocOpcode } from '../sdspecs'
+import {
+  LookupInRequest,
+  MutateInRequest,
+} from './generated/couchbase/kv.v1_pb'
 
+/**
+ * @internal
+ */
 type LookupInOpCode = LookupInRequest.Spec.OperationMap
+
+/**
+ * @internal
+ */
 type MutateInOpCode = MutateInRequest.Spec.OperationMap
 
-function toProtostellarLookupInOpCode(opCode: SubdocOpcode): LookupInOpCode[keyof LookupInOpCode] {
-  switch(opCode){
+/**
+ * @internal
+ */
+function toProtostellarLookupInOpCode(
+  opCode: SubdocOpcode
+): LookupInOpCode[keyof LookupInOpCode] {
+  switch (opCode) {
     // case SubdocOpcode.GetDoc:
     //   return LookupInRequest.Spec.Operation.GET
     case SubdocOpcode.Get:
@@ -19,8 +34,13 @@ function toProtostellarLookupInOpCode(opCode: SubdocOpcode): LookupInOpCode[keyo
   }
 }
 
-function toProtostellarMutateInOpCode(opCode: SubdocOpcode): MutateInOpCode[keyof MutateInOpCode] {
-  switch(opCode){
+/**
+ * @internal
+ */
+function toProtostellarMutateInOpCode(
+  opCode: SubdocOpcode
+): MutateInOpCode[keyof MutateInOpCode] {
+  switch (opCode) {
     // case SubdocOpcode.SetDoc:
     //   return binding.protocol_subdoc_opcode.set_doc
     // case SubdocOpcode.RemoveDoc:
@@ -50,7 +70,12 @@ function toProtostellarMutateInOpCode(opCode: SubdocOpcode): MutateInOpCode[keyo
   }
 }
 
-export function toProtostellarLookupInSpecs(specs: LookupInSpec[]): LookupInRequest.Spec[] {
+/**
+ * @internal
+ */
+export function toProtostellarLookupInSpecs(
+  specs: LookupInSpec[]
+): LookupInRequest.Spec[] {
   const psSpecs: LookupInRequest.Spec[] = []
   for (let i = 0; i < specs.length; ++i) {
     const newSpec = new LookupInRequest.Spec()
@@ -67,11 +92,16 @@ export function toProtostellarLookupInSpecs(specs: LookupInSpec[]): LookupInRequ
   return psSpecs
 }
 
-export function toProtostellarMutateInSpecs(specs: MutateInSpec[]): MutateInRequest.Spec[] {
+/**
+ * @internal
+ */
+export function toProtostellarMutateInSpecs(
+  specs: MutateInSpec[]
+): MutateInRequest.Spec[] {
   const psSpecs: MutateInRequest.Spec[] = []
   for (let i = 0; i < specs.length; ++i) {
     const newSpec = new MutateInRequest.Spec()
-    const flags =  new MutateInRequest.Spec.Flags()
+    const flags = new MutateInRequest.Spec.Flags()
     // if (specs[i]._flags?.expand_macros) {
     //   flags |=
     //     binding.protocol_mutate_in_request_body_mutate_in_specs_path_flag
@@ -86,13 +116,15 @@ export function toProtostellarMutateInSpecs(specs: MutateInSpec[]): MutateInRequ
       flags.setXattr(true)
     }
 
-    if(flags.hasCreatePath() || flags.hasXattr()){
+    if (flags.hasCreatePath() || flags.hasXattr()) {
       newSpec.setFlags(flags)
     }
 
     newSpec.setOperation(toProtostellarMutateInOpCode(specs[i]._op))
     newSpec.setPath(specs[i]._path)
-    newSpec.setContent(specs[i]._data ? Buffer.from(specs[i]._data) : specs[i]._data)
+    newSpec.setContent(
+      specs[i]._data ? Buffer.from(specs[i]._data) : specs[i]._data
+    )
     psSpecs.push(newSpec)
   }
 

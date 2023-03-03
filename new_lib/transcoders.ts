@@ -1,6 +1,8 @@
-import { ApiImplementation } from "./generaltypes"
-import { DocumentContentType, DocumentContentTypeMap} from "./protostellar/generated/couchbase/kv.v1_pb"
-
+import { ApiImplementation } from './generaltypes'
+import {
+  DocumentContentType,
+  DocumentContentTypeMap,
+} from './protostellar/generated/couchbase/kv.v1_pb'
 
 const NF_JSON = 0x00
 const NF_RAW = 0x02
@@ -28,7 +30,10 @@ export interface Transcoder {
    *
    * @param value The value to encode.
    */
-  encode(value: any, apiImplementation?: ApiImplementation): [Buffer, number | DocumentContentTypeMap[keyof DocumentContentTypeMap]]
+  encode(
+    value: any,
+    apiImplementation?: ApiImplementation
+  ): [Buffer, number | DocumentContentTypeMap[keyof DocumentContentTypeMap]]
 
   /**
    * Decodes a buffer and flags tuple back to the original type of the
@@ -36,8 +41,13 @@ export interface Transcoder {
    *
    * @param bytes The bytes that were previously encoded.
    * @param flags The flags associated with the data.
+   * @param apiImplementation The API implementation to follow.
    */
-  decode(bytes: Buffer | string | Uint8Array, flags: number, apiImplementation?: ApiImplementation): any
+  decode(
+    bytes: Buffer | string | Uint8Array,
+    flags: number,
+    apiImplementation?: ApiImplementation
+  ): any
 }
 
 /**
@@ -54,9 +64,13 @@ export class DefaultTranscoder implements Transcoder {
    * stored to the server and later used for decoding.
    *
    * @param value The value to encode.
+   * @param apiImplementation The API implementation to follow.
    */
-  encode(value: any, apiImplementation?: ApiImplementation): [Buffer, number | DocumentContentTypeMap[keyof DocumentContentTypeMap]] {
-    if(!apiImplementation){
+  encode(
+    value: any,
+    apiImplementation?: ApiImplementation
+  ): [Buffer, number | DocumentContentTypeMap[keyof DocumentContentTypeMap]] {
+    if (!apiImplementation) {
       // If its a buffer, write that directly as raw.
       if (Buffer.isBuffer(value)) {
         return [value, CF_RAW | NF_RAW]
@@ -70,19 +84,19 @@ export class DefaultTranscoder implements Transcoder {
       // Encode it to JSON and save that otherwise.
       return [Buffer.from(JSON.stringify(value)), CF_JSON | NF_JSON]
     } else {
-        // If its a buffer, write that directly as raw.
-        if (Buffer.isBuffer(value)) {
-          return [value, DocumentContentType.BINARY]
-        }
-    
-        // TODO:  handle string?
-        // If its a string, encode it as a UTF8 string.
-        // if (typeof value === 'string') {
-        //   return [Buffer.from(value), CF_UTF8 | NF_UTF8]
-        // }
-    
-        // Encode it to JSON and save that otherwise.
-        return [Buffer.from(JSON.stringify(value)), DocumentContentType.JSON]
+      // If its a buffer, write that directly as raw.
+      if (Buffer.isBuffer(value)) {
+        return [value, DocumentContentType.BINARY]
+      }
+
+      // TODO:  handle string?
+      // If its a string, encode it as a UTF8 string.
+      // if (typeof value === 'string') {
+      //   return [Buffer.from(value), CF_UTF8 | NF_UTF8]
+      // }
+
+      // Encode it to JSON and save that otherwise.
+      return [Buffer.from(JSON.stringify(value)), DocumentContentType.JSON]
     }
   }
 
@@ -92,9 +106,14 @@ export class DefaultTranscoder implements Transcoder {
    *
    * @param bytes The bytes that were previously encoded.
    * @param flags The flags associated with the data.
+   * @param apiImplementation The API implementation to follow.
    */
-  decode(bytes: Buffer | string | Uint8Array, flags: number, apiImplementation?: ApiImplementation): any {
-    if(!apiImplementation){
+  decode(
+    bytes: Buffer | string | Uint8Array,
+    flags: number,
+    apiImplementation?: ApiImplementation
+  ): any {
+    if (!apiImplementation) {
       let format = flags & NF_MASK
       const cfformat = flags & CF_MASK
 
@@ -129,7 +148,7 @@ export class DefaultTranscoder implements Transcoder {
       // Default to returning a Buffer if all else fails.
       return bytes
     } else {
-      if(flags == DocumentContentType.JSON){
+      if (flags == DocumentContentType.JSON) {
         try {
           return JSON.parse(Buffer.from(bytes).toString('utf8'))
         } catch (e) {
@@ -138,7 +157,7 @@ export class DefaultTranscoder implements Transcoder {
           return Buffer.from(bytes)
         }
       }
-  
+
       // Default to returning a Buffer if all else fails.
       return Buffer.from(bytes)
     }

@@ -1,14 +1,13 @@
-import { ApiImplementation } from '../generaltypes'
-import { CppConnection } from './binding'
-import { Bucket } from './bucket'
-import { Cluster } from './cluster'
 import { Collection } from '../collection'
-
-import { QueryExecutor } from './queryexecutor'
+import { ApiImplementation } from '../generaltypes'
 import { QueryMetaData, QueryOptions, QueryResult } from '../querytypes'
 import { StreamableRowPromise } from '../streamablepromises'
 import { Transcoder } from '../transcoders'
 import { NodeCallback, PromiseHelper } from '../utilities'
+import { CppConnection } from './binding'
+import { Bucket } from './bucket'
+import { Cluster } from './cluster'
+import { QueryExecutor } from './queryexecutor'
 
 /**
  * Exposes the operations which are available to be performed against a scope.
@@ -37,6 +36,9 @@ export class Scope {
     this._conn = bucket.conn
   }
 
+  /**
+   * The API implementation for this Scope object.
+   */
   get apiImplementation(): ApiImplementation {
     return this._bucket.apiImplementation
   }

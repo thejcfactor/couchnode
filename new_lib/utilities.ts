@@ -1,5 +1,5 @@
-import { Timestamp } from 'google-protobuf/google/protobuf/timestamp_pb';
 import { DurabilityLevel } from './generaltypes'
+import { Timestamp } from 'google-protobuf/google/protobuf/timestamp_pb'
 import * as qs from 'querystring'
 
 /**

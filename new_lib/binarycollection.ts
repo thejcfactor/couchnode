@@ -1,8 +1,8 @@
-import { Collection } from './collection'
 import { BinaryCollection as ClassicBinaryCollection } from './classic/binarycollection'
-import { BinaryCollection as ProtostellarBinaryCollection } from './protostellar/binarycollection'
+import { Collection } from './collection'
 import { CounterResult, MutationResult } from './crudoptypes'
 import { DurabilityLevel } from './generaltypes'
+import { BinaryCollection as ProtostellarBinaryCollection } from './protostellar/binarycollection'
 import { NodeCallback } from './utilities'
 
 /**

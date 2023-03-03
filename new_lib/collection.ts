@@ -1,13 +1,6 @@
-import {
-  BinaryCollection,
-} from './binarycollection'
+import { BinaryCollection } from './binarycollection'
 import { Collection as ClassicCollection } from './classic/collection'
-import { Collection as ProtostellarCollection } from './protostellar/collection'
 import { Scope as ClassicScope } from './classic/scope'
-import { Scope as ProtostellarScope } from './protostellar/scope'
-import { ApiImplementation } from './generaltypes'
-import { DurabilityLevel, StoreSemantics } from './generaltypes'
-import { LookupInSpec, MutateInSpec } from './sdspecs'
 import {
   ExistsResult,
   GetReplicaResult,
@@ -16,8 +9,13 @@ import {
   MutateInResult,
   MutationResult,
 } from './crudoptypes'
+import { ApiImplementation } from './generaltypes'
+import { DurabilityLevel, StoreSemantics } from './generaltypes'
+import { Collection as ProtostellarCollection } from './protostellar/collection'
+import { Scope as ProtostellarScope } from './protostellar/scope'
+import { LookupInSpec, MutateInSpec } from './sdspecs'
 import { Transcoder } from './transcoders'
-import { NodeCallback, PromiseHelper, Cas } from './utilities'
+import { NodeCallback, Cas } from './utilities'
 
 /**
  * @category Key-Value
@@ -348,7 +346,7 @@ export interface MutateInOptions {
    * If specified, indicates that operation should be failed if the CAS
    * has changed from this value, indicating that the document has changed.
    */
-  cas?: Cas
+  cas?: Cas | number
 
   /**
    * Specifies the level of synchronous durability for this operation.
@@ -408,8 +406,11 @@ export class Collection {
   @internal
   */
   constructor(scope: ClassicScope | ProtostellarScope, collectionName: string) {
-    if(scope.apiImplementation == ApiImplementation.Protostellar){
-      this._impl = new ProtostellarCollection(scope as ProtostellarScope, collectionName)
+    if (scope.apiImplementation == ApiImplementation.Protostellar) {
+      this._impl = new ProtostellarCollection(
+        scope as ProtostellarScope,
+        collectionName
+      )
     } else {
       this._impl = new ClassicCollection(scope as ClassicScope, collectionName)
     }
@@ -422,6 +423,9 @@ export class Collection {
     return this._impl
   }
 
+  /**
+   * The name of the API implementation for this Collection object.
+   */
   get apiImplementation(): ApiImplementation {
     return this._impl.scope.apiImplementation
   }
@@ -487,7 +491,7 @@ export class Collection {
   ): Promise<GetReplicaResult[]> {
     return this._impl.getAllReplicas(key, options, callback)
   }
-  
+
   /**
    * Inserts a new document to the collection, failing if the document already exists.
    *
@@ -621,7 +625,7 @@ export class Collection {
     options?: UnlockOptions,
     callback?: NodeCallback<void>
   ): Promise<void> {
-    return this._impl.unlock(key, (cas as number), options, callback)
+    return this._impl.unlock(key, cas as number, options, callback)
   }
 
   /**

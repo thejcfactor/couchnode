@@ -1,18 +1,17 @@
 /**
  * @internal
- * Represents the various sub-document op codes.
  */
 export enum SubdocOpcode {
   /**
    * The GET_DOC op code.
    */
   GetDoc = 0,
-  
+
   /**
    * The sET_DOC op code.
-   */  
+   */
   SetDoc = 1,
-  
+
   /**
    * The REMOVE_DOC op code.
    */
@@ -81,7 +80,7 @@ export enum SubdocOpcode {
   /**
    * The REPLACE_BODY_WITH_XATTR op code.
    */
-  ReplaceBodyWithXattr = 211
+  ReplaceBodyWithXattr = 211,
 }
 
 /**
@@ -226,12 +225,12 @@ export class LookupInSpec {
   /**
    * @internal
    */
-  _flags: {[key: string]: boolean}
+  _flags: { [key: string]: boolean }
 
   private constructor(
     op: SubdocOpcode,
     path: string,
-    flags: {[key: string]: boolean}
+    flags: { [key: string]: boolean }
   ) {
     this._op = op
     this._path = path
@@ -247,7 +246,7 @@ export class LookupInSpec {
       options = {}
     }
 
-    let flags = { xattr: false }
+    const flags = { xattr: false }
 
     if (path instanceof LookupInMacro) {
       path = path._value
@@ -342,7 +341,7 @@ export class MutateInSpec {
   /**
    * @internal
    */
-  _flags: {[key: string]: boolean}
+  _flags: { [key: string]: boolean }
 
   /**
    * @internal
@@ -352,7 +351,7 @@ export class MutateInSpec {
   private constructor(
     op: SubdocOpcode,
     path: string,
-    flags: {[key: string]: boolean},
+    flags: { [key: string]: boolean },
     data: any
   ) {
     this._op = op
@@ -375,10 +374,10 @@ export class MutateInSpec {
       options = {}
     }
 
-    let flags = {
+    const flags = {
       expandMacros: false,
       createParents: false,
-      xattr: false
+      xattr: false,
     }
 
     if (value instanceof MutateInMacro) {
@@ -431,12 +430,7 @@ export class MutateInSpec {
     value: any,
     options?: { createPath?: boolean; xattr?: boolean }
   ): MutateInSpec {
-    return this._create(
-      SubdocOpcode.DictAdd,
-      path,
-      value,
-      options
-    )
+    return this._create(SubdocOpcode.DictAdd, path, value, options)
   }
 
   /**
@@ -459,19 +453,9 @@ export class MutateInSpec {
     options?: { createPath?: boolean; xattr?: boolean }
   ): MutateInSpec {
     if (!path) {
-      return this._create(
-        SubdocOpcode.SetDoc,
-        '',
-        value,
-        options
-      )
+      return this._create(SubdocOpcode.SetDoc, '', value, options)
     }
-    return this._create(
-      SubdocOpcode.DictUpsert,
-      path,
-      value,
-      options
-    )
+    return this._create(SubdocOpcode.DictUpsert, path, value, options)
   }
 
   /**
@@ -490,12 +474,7 @@ export class MutateInSpec {
     value: any | MutateInMacro,
     options?: { xattr?: boolean }
   ): MutateInSpec {
-    return this._create(
-      SubdocOpcode.Replace,
-      path,
-      value,
-      options
-    )
+    return this._create(SubdocOpcode.Replace, path, value, options)
   }
 
   /**
@@ -509,19 +488,9 @@ export class MutateInSpec {
    */
   static remove(path: string, options?: { xattr?: boolean }): MutateInSpec {
     if (!path) {
-      return this._create(
-        SubdocOpcode.Remove,
-        '',
-        undefined,
-        options
-      )
+      return this._create(SubdocOpcode.Remove, '', undefined, options)
     }
-    return this._create(
-      SubdocOpcode.Remove,
-      path,
-      undefined,
-      options
-    )
+    return this._create(SubdocOpcode.Remove, path, undefined, options)
   }
 
   /**
@@ -545,12 +514,7 @@ export class MutateInSpec {
     value: any | MutateInMacro,
     options?: { createPath?: boolean; multi?: boolean; xattr?: boolean }
   ): MutateInSpec {
-    return this._create(
-      SubdocOpcode.ArrayPushLast,
-      path,
-      value,
-      options
-    )
+    return this._create(SubdocOpcode.ArrayPushLast, path, value, options)
   }
 
   /**
@@ -574,12 +538,7 @@ export class MutateInSpec {
     value: any | MutateInMacro,
     options?: { createPath?: boolean; multi?: boolean; xattr?: boolean }
   ): MutateInSpec {
-    return this._create(
-      SubdocOpcode.ArrayPushFirst,
-      path,
-      value,
-      options
-    )
+    return this._create(SubdocOpcode.ArrayPushFirst, path, value, options)
   }
 
   /**
@@ -605,12 +564,7 @@ export class MutateInSpec {
     value: any | MutateInMacro,
     options?: { createPath?: boolean; multi?: boolean; xattr?: boolean }
   ): MutateInSpec {
-    return this._create(
-      SubdocOpcode.ArrayInsert,
-      path,
-      value,
-      options
-    )
+    return this._create(SubdocOpcode.ArrayInsert, path, value, options)
   }
 
   /**
@@ -635,12 +589,7 @@ export class MutateInSpec {
     value: any | MutateInMacro,
     options?: { createPath?: boolean; multi?: boolean; xattr?: boolean }
   ): MutateInSpec {
-    return this._create(
-      SubdocOpcode.ArrayAddUnique,
-      path,
-      value,
-      options
-    )
+    return this._create(SubdocOpcode.ArrayAddUnique, path, value, options)
   }
 
   /**
@@ -661,12 +610,7 @@ export class MutateInSpec {
     value: any,
     options?: { createPath?: boolean; xattr?: boolean }
   ): MutateInSpec {
-    return this._create(
-      SubdocOpcode.Counter,
-      path,
-      +value,
-      options
-    )
+    return this._create(SubdocOpcode.Counter, path, +value, options)
   }
 
   /**
@@ -687,11 +631,6 @@ export class MutateInSpec {
     value: any,
     options?: { createPath?: boolean; xattr?: boolean }
   ): MutateInSpec {
-    return this._create(
-      SubdocOpcode.Counter,
-      path,
-      +value,
-      options
-    )
+    return this._create(SubdocOpcode.Counter, path, +value, options)
   }
 }

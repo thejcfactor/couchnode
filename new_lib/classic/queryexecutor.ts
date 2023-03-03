@@ -1,11 +1,3 @@
-import { CppError, CppQueryResponse } from './binding'
-import {
-  errorFromCpp,
-  mutationStateToCpp,
-  queryProfileToCpp,
-  queryScanConsistencyToCpp,
-} from './bindingutilities'
-import { Cluster } from './cluster'
 import {
   QueryMetaData,
   QueryMetrics,
@@ -15,6 +7,14 @@ import {
   QueryWarning,
 } from '../querytypes'
 import { StreamableRowPromise } from '../streamablepromises'
+import { CppError, CppQueryResponse } from './binding'
+import {
+  errorFromCpp,
+  mutationStateToCpp,
+  queryProfileToCpp,
+  queryScanConsistencyToCpp,
+} from './bindingutilities'
+import { Cluster } from './cluster'
 import { MutationState } from './mutationstate'
 
 /**
@@ -142,7 +142,9 @@ export class QueryExecutor {
           pipeline_batch: options.pipelineBatch,
           pipeline_cap: options.pipelineCap,
           scan_consistency: queryScanConsistencyToCpp(options.scanConsistency),
-          mutation_state: mutationStateToCpp((options.consistentWith as MutationState)),
+          mutation_state: mutationStateToCpp(
+            options.consistentWith as MutationState
+          ),
           timeout: timeout,
           scope_qualifier: options.queryContext,
           profile: queryProfileToCpp(options.profile),

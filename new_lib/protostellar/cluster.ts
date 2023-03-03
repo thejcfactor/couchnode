@@ -1,23 +1,25 @@
-import * as grpc from '@grpc/grpc-js';
-import { ChannelCredentials } from '@grpc/grpc-js';
-import { QueryClient } from './generated/couchbase/query.v1_grpc_pb';
 import {
   Authenticator,
-  PasswordAuthenticator,
-  CertificateAuthenticator,
+  // PasswordAuthenticator,
+  // CertificateAuthenticator,
 } from '../authenticators'
-import { ConnSpec } from '../connspec'
-import { ConnectOptions, DnsConfig } from '../cluster'
-import { Transcoder, DefaultTranscoder } from '../transcoders'
-import { PromiseHelper, NodeCallback } from '../utilities'
-import { ApiImplementation } from '../generaltypes'
-import { FeatureNotAvailableError } from '../errors'
 import { Bucket } from '../bucket'
-
-import { QueryExecutor } from './queryexecutor'
+import { ConnectOptions, DnsConfig } from '../cluster'
+import { ConnSpec } from '../connspec'
+// import { FeatureNotAvailableError } from '../errors'
+import { ApiImplementation } from '../generaltypes'
 import { QueryMetaData, QueryOptions, QueryResult } from '../querytypes'
 import { StreamableRowPromise } from '../streamablepromises'
+import { Transcoder, DefaultTranscoder } from '../transcoders'
+import { PromiseHelper, NodeCallback } from '../utilities'
+import { QueryClient } from './generated/couchbase/query.v1_grpc_pb'
+import { QueryExecutor } from './queryexecutor'
+import * as grpc from '@grpc/grpc-js'
+import { ChannelCredentials } from '@grpc/grpc-js'
 
+/**
+ * @internal
+ */
 class ProtostellarConnection {
   private _channel?: ChannelCredentials | undefined
   private _queryService?: QueryClient | undefined
@@ -26,7 +28,7 @@ class ProtostellarConnection {
    * @internal
    */
   get channel(): ChannelCredentials {
-    if(!this._channel){
+    if (!this._channel) {
       throw new Error('No gRPC channel for connection.')
     }
     return this._channel
@@ -43,7 +45,7 @@ class ProtostellarConnection {
   @internal
   */
   get queryService(): QueryClient {
-    if(!this._queryService){
+    if (!this._queryService) {
       throw new Error('No gRPC QueryClient for connection.')
     }
     return this._queryService
@@ -88,6 +90,13 @@ export class Cluster {
   private _openBuckets: string[]
   private _dnsConfig: DnsConfig | null
   private _queryService?: QueryClient
+
+  /**
+   * The API implementation for this Cluster object.
+   */
+  get apiImplementation(): ApiImplementation {
+    return this._apiImplementation
+  }
 
   /**
    * @internal
@@ -259,10 +268,6 @@ export class Cluster {
     }, callback)
   }
 
-  get apiImplementation(): ApiImplementation {
-    return this._apiImplementation
-  }
-
   /**
    * Creates a Bucket object reference to a specific bucket.
    *
@@ -296,8 +301,7 @@ export class Cluster {
     if (!options) {
       options = {}
     }
-
-    const exec = new QueryExecutor(this.queryService)
+    const exec = new QueryExecutor(this.queryService, this.queryTimeout)
 
     const options_ = options
     return PromiseHelper.wrapAsync(
@@ -325,20 +329,23 @@ export class Cluster {
     }, callback)
   }
 
-  async _connectHelper(){
+  /**
+   * @internal
+   */
+  async _connectHelper(): Promise<Error | null> {
     return this._connect()
   }
 
-  private async _connect() {
+  private async _connect(): Promise<Error | null> {
     return new Promise((resolve, reject) => {
       try {
         const dsnObj = ConnSpec.parse(this._connStr, this.apiImplementation)
 
         // @TODO(jc):  Do we need this w/ PS?
         // dsnObj.options.user_agent_extra = generateClientString()
-  
+
         const connStr = dsnObj.toString(true)
-  
+
         // @TODO(jc):  How to handle Authenticators?
         // dsnObj.options.trust_certificate = this._trustStorePath
         // const authOpts = {
@@ -366,18 +373,16 @@ export class Cluster {
         //     authOpts.key_path = certAuth.keyPath
         //   }
         // }
-  
+
         this._connStr = connStr
         this._conn.channel = grpc.credentials.createInsecure()
         this._conn.queryService = new QueryClient(connStr, this._conn.channel)
-  
+
         resolve(null)
       } catch (e) {
         // @TODO(jc):  translate to Couchbase Err
         reject(e)
       }
-      
-
 
       // this._conn.connect(connStr, authOpts, this._dnsConfig, (cppErr) => {
       //   if (cppErr) {

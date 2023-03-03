@@ -1,10 +1,16 @@
+import {
+  QueryResult,
+  QueryMetaData,
+  QueryMetrics,
+  QueryOptions,
+  QueryWarning,
+} from '../querytypes'
+import { StreamableRowPromise } from '../streamablepromises'
+import { QueryClient } from './generated/couchbase/query.v1_grpc_pb'
 import { QueryRequest, QueryResponse } from './generated/couchbase/query.v1_pb'
-import { QueryClient } from './generated/couchbase/query.v1_grpc_pb';
-
 import { queryStatusFromGrpc } from './querytypes'
-import { QueryResult, QueryMetaData, QueryMetrics, QueryOptions, QueryWarning } from '../querytypes';
-import { StreamableRowPromise } from '../streamablepromises';
-import { Scope } from './scope';
+import { expiryToTimestamp } from '../utilities'
+// import { Scope } from './scope'
 
 /**
  * @internal
@@ -13,12 +19,14 @@ export class QueryExecutor {
   private _queryService: QueryClient
   private _bucketName?: string
   private _scopeName?: string
+  private _queryTimeout: number
 
   /**
    * @internal
    */
-  constructor(service: QueryClient, bucketName?: string, scopeName?: string) {
+  constructor(service: QueryClient, queryTimeout: number, bucketName?: string, scopeName?: string) {
     this._queryService = service
+    this._queryTimeout = queryTimeout
     this._bucketName = bucketName
     this._scopeName = scopeName
   }
@@ -30,17 +38,16 @@ export class QueryExecutor {
     query: string,
     options: QueryOptions
   ): StreamableRowPromise<QueryResult<TRow>, TRow, QueryMetaData> {
-    // const timeout = options.timeout || this._cluster.queryTimeout
+    const deadline = Date.now() + (options.timeout || this._queryTimeout)
 
     const req = new QueryRequest()
-    if(this._bucketName){
+    if (this._bucketName) {
       req.setBucketName(this._bucketName)
     }
-    if(this._scopeName){
+    if (this._scopeName) {
       req.setScopeName(this._scopeName)
     }
     req.setStatement(query)
-    console.log(req)
 
     const emitter = new StreamableRowPromise<
       QueryResult<TRow>,
@@ -53,23 +60,23 @@ export class QueryExecutor {
       })
     })
 
-    const call = this._queryService.query(req)
+    const call = this._queryService.query(req, {deadline: deadline})
 
-    call.on('data', function(resp: QueryResponse) {
+    call.on('data', function (resp: QueryResponse) {
       resp.getRowsList_asU8().forEach((row) => {
         emitter.emit('row', QueryExecutor.parseRow(row))
       })
-      if(resp.hasMetaData()){
+      if (resp.hasMetaData()) {
         emitter.emit('meta', QueryExecutor.parseMetadata(resp.getMetaData()))
       }
-    });
-    call.on('end', function() {
+    })
+    call.on('end', function () {
       emitter.emit('end')
-    });
-    call.on('error', function(err: Error) {
+    })
+    call.on('error', function (err: Error) {
       emitter.emit('error', err)
       emitter.emit('end')
-    });
+    })
     // TODO:  do we want to do something w/ the status?
     // call.on('status', function(status: Status) {
     //   console.log('Query status: ', status)
@@ -82,7 +89,7 @@ export class QueryExecutor {
    * @internal
    */
   static parseRow(row: Uint8Array | string): any {
-    if(row instanceof Uint8Array){
+    if (row instanceof Uint8Array) {
       return JSON.parse(Buffer.from(row).toString('utf8'))
     }
     return JSON.parse(row)
@@ -91,15 +98,23 @@ export class QueryExecutor {
   /**
    * @internal
    */
-  static parseMetadata(metaData: QueryResponse.MetaData | undefined): QueryMetaData | undefined {
-    if(!metaData){
+  static parseMetadata(
+    metaData: QueryResponse.MetaData | undefined
+  ): QueryMetaData | undefined {
+    if (!metaData) {
       return metaData
     }
 
-    const warnings = metaData.getWarningsList().map((warningData) => new QueryWarning({code: warningData.getCode(), message: warningData.getMessage()}))
+    const warnings = metaData.getWarningsList().map(
+      (warningData) =>
+        new QueryWarning({
+          code: warningData.getCode(),
+          message: warningData.getMessage(),
+        })
+    )
     let metrics: QueryMetrics | undefined
     const metricsData = metaData.getMetrics()
-    if(metricsData){
+    if (metricsData) {
       metrics = new QueryMetrics({
         elapsedTime: metricsData.getElapsedTime()?.getNanos() || 0,
         executionTime: metricsData.getExecutionTime()?.getNanos() || 0,
@@ -117,16 +132,16 @@ export class QueryExecutor {
     const queryStatus = queryStatusFromGrpc(metaData.getStatus())
     const signature = metaData.getSignature()
     let querySignature: any | undefined = undefined
-    if(signature instanceof Uint8Array){
+    if (signature instanceof Uint8Array) {
       querySignature = JSON.parse(Buffer.from(signature).toString('utf8'))
     } else {
       querySignature = JSON.parse(signature)
     }
 
     let queryProfile: any | undefined = undefined
-    if(metaData.hasProfile()){
+    if (metaData.hasProfile()) {
       const profile = metaData.getProfile()
-      if(profile instanceof Uint8Array){
+      if (profile instanceof Uint8Array) {
         queryProfile = JSON.parse(Buffer.from(profile).toString('utf8'))
       } else {
         queryProfile = JSON.parse(profile)
@@ -144,7 +159,5 @@ export class QueryExecutor {
     })
 
     return meta
-
   }
-
 }

@@ -1,12 +1,22 @@
-import { MutationToken as GrpcMutationToken }  from "./generated/couchbase/kv.v1_pb"
+import { MutationToken as GrpcMutationToken } from './generated/couchbase/kv.v1_pb'
 
+/**
+ * Represents the mutation token returned by the server.
+ *
+ * @see {@link MutationState}
+ */
 export class MutationToken {
   private _bucketName: string
   private _vbucketId: number
   private _vbucketUuid: number
   private _seqNo: number
 
-  constructor(bucketName: string, vbucketId: number, vbucketUuid: number, seqNo: number) {
+  constructor(
+    bucketName: string,
+    vbucketId: number,
+    vbucketUuid: number,
+    seqNo: number
+  ) {
     this._bucketName = bucketName
     this._vbucketId = vbucketId
     this._vbucketUuid = vbucketUuid
@@ -41,23 +51,37 @@ export class MutationToken {
     return this._seqNo
   }
 
-  toJSON(): {[key: string]: string | number} {
+  /**
+   * Generates a JSON representation of this mutation token.
+   */
+  toJSON(): { [key: string]: string | number } {
     return {
       bucket_name: this.bucketName,
       partition_id: this.vbucketId,
       partition_uuid: this.vbucketUuid,
-      sequence_number: this.seqNo
+      sequence_number: this.seqNo,
     }
   }
 
-  static fromResponse(token: GrpcMutationToken | undefined): MutationToken | undefined {
-    if(!token){
+  /**
+   * Creates a MutationToken representation from a gRPC response.
+   * 
+   * @param token The MutationToken received from a gRPC response.
+   */
+  static fromResponse(
+    token: GrpcMutationToken | undefined
+  ): MutationToken | undefined {
+    if (!token) {
       return token
     }
 
-    return new MutationToken(token?.getBucketName(), token?.getVbucketId(), token?.getVbucketUuid(), token?.getSeqNo())
+    return new MutationToken(
+      token?.getBucketName(),
+      token?.getVbucketId(),
+      token?.getVbucketUuid(),
+      token?.getSeqNo()
+    )
   }
-
 }
 
 /**

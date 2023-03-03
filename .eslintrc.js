@@ -37,6 +37,7 @@ module.exports = {
       ignoreInternal: true,
     },
   },
+  ignorePatterns: ["new_lib/protostellar/generated/**"],
   rules: {
     // We intentionally use `any` in a few places for user values.
     '@typescript-eslint/explicit-module-boundary-types': [

@@ -1,10 +1,9 @@
 import { Bucket as ClassicBucket } from './classic/bucket'
-import { Bucket as ProtostellarBucket } from './protostellar/bucket'
-import { Collection } from './collection'
 import { Scope as ClassicScope } from './classic/scope'
-import { Scope as ProtostellarScope } from './protostellar/scope'
+import { Collection } from './collection'
 import { ApiImplementation } from './generaltypes'
-
+import { Bucket as ProtostellarBucket } from './protostellar/bucket'
+import { Scope as ProtostellarScope } from './protostellar/scope'
 import { QueryMetaData, QueryOptions, QueryResult } from './querytypes'
 import { StreamableRowPromise } from './streamablepromises'
 import { NodeCallback } from './utilities'
@@ -29,11 +28,21 @@ export class Scope {
   @internal
   */
   constructor(bucket: ClassicBucket | ProtostellarBucket, scopeName: string) {
-    if(bucket.apiImplementation == ApiImplementation.Protostellar){
-      this._impl = new ProtostellarScope(bucket as ProtostellarBucket, scopeName)
+    if (bucket.apiImplementation == ApiImplementation.Protostellar) {
+      this._impl = new ProtostellarScope(
+        bucket as ProtostellarBucket,
+        scopeName
+      )
     } else {
       this._impl = new ClassicScope(bucket as ClassicBucket, scopeName)
     }
+  }
+
+  /**
+   * The name of the API implementation for this Scope object.
+   */
+  get apiImplementation(): ApiImplementation {
+    return this._impl.bucket.apiImplementation
   }
 
   /**

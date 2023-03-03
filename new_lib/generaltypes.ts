@@ -97,12 +97,12 @@ export enum StoreSemantics {
  */
 export enum ApiImplementation {
   /**
-   * Indicates the API implementation used is class Couchbase Server
+   * Indicates the API implementation used is classic Couchbase Server.
    */
   Classic = 0,
 
   /**
-   * Indicates the API implementation used is Protostellar
+   * Indicates the API implementation used is Protostellar.
    */
   Protostellar = 1,
 }

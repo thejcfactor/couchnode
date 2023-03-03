@@ -18,7 +18,6 @@ export async function connect(
   return Cluster.connect(connStr, options, callback)
 }
 
-
 // export * from './analyticsindexmanager'
 // export * from './analyticstypes'
 export * from './authenticators'

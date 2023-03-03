@@ -1,48 +1,4 @@
 import {
-  BinaryCollection,
-} from './binarycollection'
-import binding, {
-  CppDocumentId,
-  CppConnection,
-  CppError,
-  zeroCas,
-  CppImplSubdocCommand,
-  CppInsertResponse,
-  CppUpsertResponse,
-  CppRemoveResponse,
-  CppReplaceResponse,
-  CppMutateInResponse,
-  CppAppendResponse,
-  CppPrependResponse,
-  CppIncrementResponse,
-  CppDecrementResponse,
-} from './binding'
-import { ApiImplementation, DurabilityLevel, StoreSemantics } from '../generaltypes'
-import { Bucket } from './bucket'
-import { Cluster } from './cluster'
-import { Scope } from './scope'
-import { LookupInMacro, LookupInSpec, MutateInSpec } from '../sdspecs'
-import { toCppLookupInSpecs, toCppMutateInSpecs } from './sdspecs'
-import { Transcoder } from '../transcoders'
-import {
-  CounterResult,
-  ExistsResult,
-  GetReplicaResult,
-  GetResult,
-  LookupInResult,
-  LookupInResultEntry,
-  MutateInResult,
-  MutateInResultEntry,
-  MutationResult,
-} from '../crudoptypes'
-import {
-  durabilityToCpp,
-  errorFromCpp,
-  persistToToCpp,
-  replicateToToCpp,
-  storeSemanticToCpp,
-} from './bindingutilities'
-import {
   AppendOptions,
   DecrementOptions,
   IncrementOptions,
@@ -64,9 +20,55 @@ import {
   UnlockOptions,
   UpsertOptions,
 } from '../collection'
-import { StreamableReplicasPromise } from '../streamablepromises'
-import { NodeCallback, PromiseHelper, Cas } from '../utilities'
+import {
+  CounterResult,
+  ExistsResult,
+  GetReplicaResult,
+  GetResult,
+  LookupInResult,
+  LookupInResultEntry,
+  MutateInResult,
+  MutateInResultEntry,
+  MutationResult,
+} from '../crudoptypes'
+import {
+  ApiImplementation,
+  DurabilityLevel,
+  StoreSemantics,
+} from '../generaltypes'
+import { LookupInMacro, LookupInSpec, MutateInSpec } from '../sdspecs'
 import { SdUtils } from '../sdutils'
+import { StreamableReplicasPromise } from '../streamablepromises'
+import { Transcoder } from '../transcoders'
+import { NodeCallback, PromiseHelper, Cas } from '../utilities'
+import { BinaryCollection } from './binarycollection'
+import binding, {
+  CppDocumentId,
+  CppConnection,
+  CppError,
+  zeroCas,
+  // CppImplSubdocCommand,
+  CppInsertResponse,
+  CppUpsertResponse,
+  CppRemoveResponse,
+  CppReplaceResponse,
+  CppMutateInResponse,
+  CppAppendResponse,
+  CppPrependResponse,
+  CppIncrementResponse,
+  CppDecrementResponse,
+} from './binding'
+import {
+  durabilityToCpp,
+  errorFromCpp,
+  persistToToCpp,
+  replicateToToCpp,
+  storeSemanticToCpp,
+} from './bindingutilities'
+// import { Bucket } from './bucket'
+import { Cluster } from './cluster'
+import { Scope } from './scope'
+import { toCppLookupInSpecs, toCppMutateInSpecs } from './sdspecs'
 
 /**
  * Exposes the operations which are available to be performed against a collection.
@@ -86,6 +88,9 @@ export class Collection {
   private _name: string
   private _conn: CppConnection
 
+  /**
+   * The API implementation for this Collection object.
+   */
   get apiImplementation(): ApiImplementation {
     return this._scope.apiImplementation
   }
@@ -763,7 +768,7 @@ export class Collection {
     }
 
     const expiry = options.expiry || 0
-    const cas = ((options.cas ?? zeroCas) as Cas)
+    const cas = (options.cas ?? zeroCas) as Cas
     const preserve_expiry = options.preserveExpiry
     const transcoder = options.transcoder || this.transcoder
     const durabilityLevel = options.durabilityLevel
@@ -849,7 +854,7 @@ export class Collection {
       options = {}
     }
 
-    const cas = ((options.cas ?? zeroCas) as Cas)
+    const cas = (options.cas ?? zeroCas) as Cas
     const durabilityLevel = options.durabilityLevel
     const persistTo = options.durabilityPersistTo
     const replicateTo = options.durabilityReplicateTo
@@ -1621,5 +1626,4 @@ export class Collection {
       }
     }, callback)
   }
-
 }

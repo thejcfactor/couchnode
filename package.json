@@ -78,7 +78,7 @@
     "test-fast": "ts-mocha test/*.test.* -ig '(slow)'",
     "cover": "nyc ts-mocha test/*.test.*",
     "cover-fast": "nyc ts-mocha test/*.test.* -ig '(slow)'",
-    "lint": "eslint ./lib/ ./test/",
+    "lint": "eslint ./new_lib/ ./test/",
     "check-deps": "ncu"
   },
   "binary": {

@@ -1,16 +1,14 @@
-import binding, { CppImplSubdocCommand, CppProtocolSubdocOpcode  } from './binding'
 import { LookupInSpec, MutateInSpec, SubdocOpcode } from '../sdspecs'
+import binding, {
+  CppImplSubdocCommand,
+  CppProtocolSubdocOpcode,
+} from './binding'
 
 /**
- * Represents a sub-operation to perform within a lookup-in operation.
- *
- * @category Key-Value
+ * @internal
  */
-export interface ClassicLookupInSpec {
-}
-
 function toCppSubdocOpCode(opCode: SubdocOpcode): CppProtocolSubdocOpcode {
-  switch(opCode){
+  switch (opCode) {
     case SubdocOpcode.GetDoc:
       return binding.protocol_subdoc_opcode.get_doc
     case SubdocOpcode.SetDoc:
@@ -44,10 +42,14 @@ function toCppSubdocOpCode(opCode: SubdocOpcode): CppProtocolSubdocOpcode {
     case SubdocOpcode.ReplaceBodyWithXattr:
       return binding.protocol_subdoc_opcode.replace_body_with_xattr
   }
-
 }
 
-export function toCppLookupInSpecs(specs: LookupInSpec[]): CppImplSubdocCommand[] {
+/**
+ * @internal
+ */
+export function toCppLookupInSpecs(
+  specs: LookupInSpec[]
+): CppImplSubdocCommand[] {
   const cppSpecs: CppImplSubdocCommand[] = []
   for (let i = 0; i < specs.length; ++i) {
     let flags = 0
@@ -67,7 +69,12 @@ export function toCppLookupInSpecs(specs: LookupInSpec[]): CppImplSubdocCommand[
   return cppSpecs
 }
 
-export function toCppMutateInSpecs(specs: MutateInSpec[]): CppImplSubdocCommand[] {
+/**
+ * @internal
+ */
+export function toCppMutateInSpecs(
+  specs: MutateInSpec[]
+): CppImplSubdocCommand[] {
   const cppSpecs: CppImplSubdocCommand[] = []
   for (let i = 0; i < specs.length; ++i) {
     let flags = 0
@@ -92,9 +99,7 @@ export function toCppMutateInSpecs(specs: MutateInSpec[]): CppImplSubdocCommand[
       opcode_: specs[i]._op,
       flags_: flags,
       path_: specs[i]._path,
-      value_: specs[i]._data
-        ? Buffer.from(specs[i]._data)
-        : specs[i]._data,
+      value_: specs[i]._data ? Buffer.from(specs[i]._data) : specs[i]._data,
       original_index_: 0,
     })
   }

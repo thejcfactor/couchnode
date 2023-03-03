@@ -2,11 +2,11 @@ import {
   AppendOptions,
   DecrementOptions,
   IncrementOptions,
-  PrependOptions
+  PrependOptions,
 } from '../binarycollection'
-import { Collection } from './collection'
 import { CounterResult, MutationResult } from '../crudoptypes'
 import { NodeCallback } from '../utilities'
+import { Collection } from './collection'
 
 /**
  * Exposes a number of binary-level operations against a collection.
@@ -93,5 +93,5 @@ export class BinaryCollection {
     callback?: NodeCallback<MutationResult>
   ): Promise<MutationResult> {
     return this._coll._binaryPrepend(key, value, options, callback)
-  }  
+  }
 }
