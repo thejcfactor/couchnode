@@ -3,7 +3,7 @@
 const assert = require('chai').assert
 const uuid = require('uuid')
 const semver = require('semver')
-const couchbase = require('../lib/couchbase')
+const couchbase = require('../new_lib/couchbase')
 const jcbmock = require('./jcbmock')
 
 try {
@@ -367,6 +367,14 @@ class Harness {
     if (!this.supportsFeature(feature)) {
       /* eslint-disable-next-line mocha/no-skipped-tests */
       test.skip()
+      throw new Error('test skipped')
+    }
+  }
+
+  skipIfProtostellar(test, message){
+    if(this._testCluster.apiImplementation == couchbase.ApiImplementation.Protostellar){
+      /* eslint-disable-next-line mocha/no-skipped-tests */
+      test.skip(message)
       throw new Error('test skipped')
     }
   }

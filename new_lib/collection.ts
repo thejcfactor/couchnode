@@ -4,15 +4,14 @@ import { Scope as ClassicScope } from './classic/scope'
 import { Scope as ProtostellarScope } from './protostellar/scope'
 import { ApiImplementation } from './generaltypes'
 import { DurabilityLevel, StoreSemantics } from './generaltypes'
+import { LookupInSpec, MutateInSpec } from './sdspecs'
 import {
   // CounterResult,
   ExistsResult,
   // GetReplicaResult,
   GetResult,
-  // LookupInResult,
-  // LookupInResultEntry,
-  // MutateInResult,
-  // MutateInResultEntry,
+  LookupInResult,
+  MutateInResult,
   MutationResult,
 } from './crudoptypes'
 import { Transcoder } from './transcoders'
@@ -310,6 +309,84 @@ export interface UnlockOptions {
 }
 
 /**
+ * @category Key-Value
+ */
+export interface UnlockOptions {
+  /**
+   * The timeout for this operation, represented in milliseconds.
+   */
+  timeout?: number
+}
+
+/**
+ * @category Key-Value
+ */
+export interface LookupInOptions {
+  /**
+   * The timeout for this operation, represented in milliseconds.
+   */
+  timeout?: number
+}
+
+/**
+ * @category Key-Value
+ */
+export interface MutateInOptions {
+  /**
+   * Specifies the expiry time for this document, specified in seconds.
+   */
+  expiry?: number
+
+  /**
+   * Specifies that any existing expiry on the document should be preserved.
+   */
+  preserveExpiry?: boolean
+
+  /**
+   * If specified, indicates that operation should be failed if the CAS
+   * has changed from this value, indicating that the document has changed.
+   */
+  cas?: Cas
+
+  /**
+   * Specifies the level of synchronous durability for this operation.
+   */
+  durabilityLevel?: DurabilityLevel
+
+  /**
+   * Specifies the number of nodes this operation should be persisted to
+   * before it is considered successful.  Note that this option is mutually
+   * exclusive of {@link durabilityLevel}.
+   */
+  durabilityPersistTo?: number
+
+  /**
+   * Specifies the number of nodes this operation should be replicated to
+   * before it is considered successful.  Note that this option is mutually
+   * exclusive of {@link durabilityLevel}.
+   */
+  durabilityReplicateTo?: number
+
+  /**
+   * Specifies the store semantics to use for this operation.
+   */
+  storeSemantics?: StoreSemantics
+
+  /**
+   * The timeout for this operation, represented in milliseconds.
+   */
+  timeout?: number
+
+  /**
+   * Specifies whether the operation should be performed with upsert semantics,
+   * creating the document if it does not already exist.
+   *
+   * @deprecated Use {@link MutateInOptions.storeSemantics} instead.
+   */
+  upsertDocument?: boolean
+}
+
+/**
  * Exposes the operations which are available to be performed against a collection.
  * Namely the ability to perform KV operations.
  *
@@ -504,5 +581,41 @@ export class Collection {
     callback?: NodeCallback<void>
   ): Promise<void> {
     return this._impl.unlock(key, (cas as number), options, callback)
-  }  
+  }
+
+  /**
+   * Performs a lookup-in operation against a document, fetching individual fields or
+   * information about specific fields inside the document value.
+   *
+   * @param key The document key to look in.
+   * @param specs A list of specs describing the data to fetch from the document.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  lookupIn(
+    key: string,
+    specs: LookupInSpec[],
+    options?: LookupInOptions,
+    callback?: NodeCallback<LookupInResult>
+  ): Promise<LookupInResult> {
+    return this._impl.lookupIn(key, specs, options, callback)
+  }
+
+  /**
+   * Performs a mutate-in operation against a document.  Allowing atomic modification of
+   * specific fields within a document.  Also enables access to document extended-attributes.
+   *
+   * @param key The document key to mutate.
+   * @param specs A list of specs describing the operations to perform on the document.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  mutateIn(
+    key: string,
+    specs: MutateInSpec[],
+    options?: MutateInOptions,
+    callback?: NodeCallback<MutateInResult>
+  ): Promise<MutateInResult> {
+    return this._impl.mutateIn(key, specs, options, callback)
+  }
 }

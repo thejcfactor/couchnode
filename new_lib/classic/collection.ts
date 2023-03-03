@@ -14,21 +14,22 @@ import binding, {
   CppIncrementResponse,
   CppDecrementResponse,
 } from './binding'
-import { ApiImplementation, DurabilityLevel } from '../generaltypes'
+import { ApiImplementation, DurabilityLevel, StoreSemantics } from '../generaltypes'
 import { Bucket } from './bucket'
 import { Cluster } from './cluster'
 import { Scope } from './scope'
-
+import { LookupInMacro, LookupInSpec, MutateInSpec } from '../sdspecs'
+import { toCppLookupInSpecs, toCppMutateInSpecs } from './sdspecs'
 import { Transcoder } from '../transcoders'
 import {
   // CounterResult,
   ExistsResult,
   GetReplicaResult,
   GetResult,
-  // LookupInResult,
-  // LookupInResultEntry,
-  // MutateInResult,
-  // MutateInResultEntry,
+  LookupInResult,
+  LookupInResultEntry,
+  MutateInResult,
+  MutateInResultEntry,
   MutationResult,
 } from '../crudoptypes'
 import {
@@ -38,9 +39,25 @@ import {
   replicateToToCpp,
   storeSemanticToCpp,
 } from './bindingutilities'
-import { ExistsOptions, GetAllReplicasOptions, GetAndLockOptions, GetAndTouchOptions, GetAnyReplicaOptions, GetOptions, InsertOptions, RemoveOptions, ReplaceOptions, TouchOptions, UnlockOptions, UpsertOptions } from '../collection'
+import { 
+  ExistsOptions,
+  GetAllReplicasOptions,
+  GetAndLockOptions,
+  GetAndTouchOptions,
+  GetAnyReplicaOptions,
+  GetOptions,
+  InsertOptions,
+  LookupInOptions,
+  MutateInOptions,
+  RemoveOptions,
+  ReplaceOptions,
+  TouchOptions,
+  UnlockOptions,
+  UpsertOptions,
+} from '../collection'
 import { StreamableReplicasPromise } from '../streamablepromises'
 import { NodeCallback, PromiseHelper, Cas } from '../utilities'
+import { SdUtils } from '../sdutils'
 
 /**
  * Exposes the operations which are available to be performed against a collection.
@@ -162,6 +179,19 @@ export class Collection {
   }
 
   /**
+   * @internal
+   */
+  _subdocDecode(bytes: Buffer): any {
+    try {
+      return JSON.parse(bytes.toString('utf8'))
+    } catch (e) {
+      // If we encounter a parse error, assume that we need
+      // to return bytes instead of an object.
+      return bytes
+    }
+  }
+
+  /**
    * The name of the collection this Collection object references.
    */
   get name(): string {
@@ -227,6 +257,89 @@ export class Collection {
     }, callback)
   }
 
+  private _projectedGet(
+    key: string,
+    options: GetOptions,
+    callback?: NodeCallback<GetResult>
+  ): Promise<GetResult> {
+    let expiryStart = -1
+    let projStart = -1
+    let paths: string[] = []
+    let spec: LookupInSpec[] = []
+    let needReproject = false
+
+    if (options.withExpiry) {
+      expiryStart = spec.length
+      spec.push(LookupInSpec.get(LookupInMacro.Expiry))
+    }
+
+    projStart = spec.length
+    if (!options.project) {
+      paths = ['']
+      spec.push(LookupInSpec.get(''))
+    } else {
+      let projects = options.project
+      if (!Array.isArray(projects)) {
+        projects = [projects]
+      }
+
+      for (let i = 0; i < projects.length; ++i) {
+        paths.push(projects[i])
+        spec.push(LookupInSpec.get(projects[i]))
+      }
+    }
+
+    // The following code relies on the projections being
+    // the last segment of the specs array, this way we handle
+    // an overburdened operation in a single area.
+    if (spec.length > 16) {
+      spec = spec.splice(0, projStart)
+      spec.push(LookupInSpec.get(''))
+      needReproject = true
+    }
+
+    return PromiseHelper.wrapAsync(async () => {
+      const res = await this.lookupIn(key, spec, {
+        ...options,
+      })
+
+      let content: any = null
+      let expiry: number | undefined = undefined
+
+      if (expiryStart >= 0) {
+        const expiryRes = res.content[expiryStart]
+        expiry = expiryRes.value
+      }
+
+      if (projStart >= 0) {
+        if (!needReproject) {
+          for (let i = 0; i < paths.length; ++i) {
+            const projPath = paths[i]
+            const projRes = res.content[projStart + i]
+            if (!projRes.error) {
+              content = SdUtils.insertByPath(content, projPath, projRes.value)
+            }
+          }
+        } else {
+          content = {}
+
+          const reprojRes = res.content[projStart]
+          for (let j = 0; j < paths.length; ++j) {
+            const reprojPath = paths[j]
+            const value = SdUtils.getByPath(reprojRes.value, reprojPath)
+            content = SdUtils.insertByPath(content, reprojPath, value)
+          }
+        }
+      }
+
+      return new GetResult({
+        content: content,
+        cas: res.cas,
+        expiryTime: expiry,
+      })
+    }, callback)
+  }
+
   /**
    * Retrieves the value of a document from the collection.
    *
@@ -247,9 +360,9 @@ export class Collection {
       options = {}
     }
 
-    // if (options.project || options.withExpiry) {
-    //   return this._projectedGet(key, options, callback)
-    // }
+    if (options.project || options.withExpiry) {
+      return this._projectedGet(key, options, callback)
+    }
 
     const transcoder = options.transcoder || this.transcoder
     const timeout = options.timeout || this.cluster.kvTimeout
@@ -460,7 +573,7 @@ export class Collection {
     callback?: NodeCallback<MutationResult>
   ): Promise<MutationResult> {
     if (options instanceof Function) {
-      callback = arguments[3]
+      callback = arguments[2]
       options = undefined
     }
     if (!options) {
@@ -546,7 +659,7 @@ export class Collection {
     callback?: NodeCallback<MutationResult>
   ): Promise<MutationResult> {
     if (options instanceof Function) {
-      callback = arguments[3]
+      callback = arguments[2]
       options = undefined
     }
     if (!options) {
@@ -633,7 +746,7 @@ export class Collection {
     callback?: NodeCallback<MutationResult>
   ): Promise<MutationResult> {
     if (options instanceof Function) {
-      callback = arguments[3]
+      callback = arguments[2]
       options = undefined
     }
     if (!options) {
@@ -1000,6 +1113,197 @@ export class Collection {
           wrapCallback(null)
         }
       )
+    }, callback)
+  }
+
+  /**
+   * Performs a lookup-in operation against a document, fetching individual fields or
+   * information about specific fields inside the document value.
+   *
+   * @param key The document key to look in.
+   * @param specs A list of specs describing the data to fetch from the document.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  lookupIn(
+    key: string,
+    specs: LookupInSpec[],
+    options?: LookupInOptions,
+    callback?: NodeCallback<LookupInResult>
+  ): Promise<LookupInResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const cppSpecs = toCppLookupInSpecs(specs)
+    const timeout = options.timeout || this.cluster.kvTimeout
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._conn.lookupIn(
+        {
+          id: this._cppDocId(key),
+          specs: cppSpecs,
+          timeout,
+          partition: 0,
+          opaque: 0,
+          access_deleted: false,
+        },
+        (cppErr, resp) => {
+          const err = errorFromCpp(cppErr)
+
+          if (resp && resp.fields) {
+            const content: LookupInResultEntry[] = []
+
+            for (let i = 0; i < resp.fields.length; ++i) {
+              const itemRes = resp.fields[i]
+
+              let error = errorFromCpp(itemRes.ec)
+
+              let value: any = undefined
+              if (itemRes.value && itemRes.value.length > 0) {
+                value = this._subdocDecode(itemRes.value)
+              }
+
+              // BUG(JSCBC-1016): Should remove this workaround when the underlying bug is resolved.
+              if (itemRes.opcode === binding.protocol_subdoc_opcode.exists) {
+                error = null
+                value = itemRes.exists
+              }
+
+              content.push(
+                new LookupInResultEntry({
+                  error,
+                  value,
+                })
+              )
+            }
+
+            wrapCallback(
+              err,
+              new LookupInResult({
+                content: content,
+                cas: resp.cas,
+              })
+            )
+            return
+          }
+
+          wrapCallback(err, null)
+        }
+      )
+    }, callback)
+  }
+
+  /**
+   * Performs a mutate-in operation against a document.  Allowing atomic modification of
+   * specific fields within a document.  Also enables access to document extended-attributes.
+   *
+   * @param key The document key to mutate.
+   * @param specs A list of specs describing the operations to perform on the document.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  mutateIn(
+    key: string,
+    specs: MutateInSpec[],
+    options?: MutateInOptions,
+    callback?: NodeCallback<MutateInResult>
+  ): Promise<MutateInResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const cppSpecs = toCppMutateInSpecs(specs)
+    const storeSemantics = options.upsertDocument
+      ? StoreSemantics.Upsert
+      : options.storeSemantics
+    const expiry = options.expiry
+    const preserveExpiry = options.preserveExpiry
+    const cas = options.cas
+    const durabilityLevel = options.durabilityLevel
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
+    const timeout = options.timeout || this._mutationTimeout(durabilityLevel)
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      const mutateInReq = {
+        id: this._cppDocId(key),
+        store_semantics: storeSemanticToCpp(storeSemantics),
+        specs: cppSpecs,
+        expiry,
+        preserve_expiry: preserveExpiry || false,
+        cas: cas || zeroCas,
+        timeout,
+        partition: 0,
+        opaque: 0,
+        access_deleted: false,
+        create_as_deleted: false,
+      }
+
+      const mutateInCallback = (
+        cppErr: CppError | null,
+        resp: CppMutateInResponse
+      ) => {
+        const err = errorFromCpp(cppErr)
+
+        if (resp && resp.fields) {
+          const content: MutateInResultEntry[] = []
+
+          for (let i = 0; i < resp.fields.length; ++i) {
+            const itemRes = resp.fields[i]
+
+            let value: any = undefined
+            if (itemRes.value && itemRes.value.length > 0) {
+              value = this._subdocDecode(itemRes.value)
+            }
+
+            content.push(
+              new MutateInResultEntry({
+                value,
+              })
+            )
+          }
+
+          wrapCallback(
+            err,
+            new MutateInResult({
+              content: content,
+              cas: resp.cas,
+              token: resp.token,
+            })
+          )
+          return
+        }
+
+        wrapCallback(err, null)
+      }
+
+      if (persistTo || replicateTo) {
+        this._conn.mutateInWithLegacyDurability(
+          {
+            ...mutateInReq,
+            persist_to: persistToToCpp(persistTo),
+            replicate_to: replicateToToCpp(replicateTo),
+          },
+          mutateInCallback
+        )
+      } else {
+        this._conn.mutateIn(
+          {
+            ...mutateInReq,
+            durability_level: durabilityToCpp(durabilityLevel),
+          },
+          mutateInCallback
+        )
+      }
     }, callback)
   }
 

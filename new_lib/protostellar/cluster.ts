@@ -19,8 +19,8 @@ import { QueryMetaData, QueryOptions, QueryResult } from '../querytypes'
 import { StreamableRowPromise } from '../streamablepromises'
 
 class ProtostellarConnection {
-  private _channel?: ChannelCredentials
-  private _queryService?: QueryClient
+  private _channel?: ChannelCredentials | undefined
+  private _queryService?: QueryClient | undefined
 
   /**
    * @internal
@@ -35,7 +35,7 @@ class ProtostellarConnection {
   /**
    * @internal
    */
-  set channel(channel: ChannelCredentials) {
+  set channel(channel: ChannelCredentials | undefined) {
     this._channel = channel
   }
 
@@ -52,7 +52,7 @@ class ProtostellarConnection {
   /**
    * @internal
    */
-  set queryService(svc: QueryClient) {
+  set queryService(svc: QueryClient | undefined) {
     this._queryService = svc
   }
 
@@ -306,6 +306,25 @@ export class Cluster {
     )
   }
 
+  /**
+   * Shuts down this cluster object.  Cleaning up all resources associated with it.
+   *
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  async close(callback?: NodeCallback<void>): Promise<void> {
+    // if (this._transactions) {
+    //   await this._transactions._close()
+    //   this._transactions = undefined
+    // }
+
+    // @TODO: I don't like this...but for now okay...
+    this._conn.channel = undefined
+    this._conn.queryService = undefined
+    return PromiseHelper.wrap((wrapCallback) => {
+      wrapCallback(null)
+    }, callback)
+  }
+
   async _connectHelper(){
     return this._connect()
   }
@@ -348,6 +367,7 @@ export class Cluster {
         //   }
         // }
   
+        this._connStr = connStr
         this._conn.channel = grpc.credentials.createInsecure()
         this._conn.queryService = new QueryClient(connStr, this._conn.channel)
   

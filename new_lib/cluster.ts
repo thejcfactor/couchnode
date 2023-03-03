@@ -3,6 +3,7 @@ import {
   PasswordAuthenticator,
   CertificateAuthenticator,
 } from './authenticators'
+import { ApiImplementation } from './generaltypes'
 import { Transcoder, DefaultTranscoder } from './transcoders'
 import { PromiseHelper, NodeCallback } from './utilities'
 
@@ -158,7 +159,6 @@ export interface ConnectOptions {
 export class Cluster {
   private _impl: ClassicCluster | ProtostellarCluster
 
-
     /**
   @internal
   @deprecated Use the static sdk-level {@link connect} method instead.
@@ -169,6 +169,19 @@ export class Cluster {
     } else {
       this._impl = new ClassicCluster(connStr, options)
     }
+  }
+
+  get apiImplementation(): ApiImplementation {
+    return this._impl.apiImplementation
+  }
+
+  /**
+   * Shuts down this cluster object.  Cleaning up all resources associated with it.
+   *
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  async close(callback?: NodeCallback<void>): Promise<void> {
+    return this._impl.close(callback)
   }
 
   private async _connect() {

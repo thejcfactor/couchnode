@@ -1,9 +1,32 @@
 import { ChannelCredentials } from '@grpc/grpc-js';
-import { Timestamp } from 'google-protobuf/google/protobuf/timestamp_pb';
-import { DocumentContentTypeMap, ExistsRequest, ExistsResponse, GetAndLockRequest, GetAndTouchRequest, GetRequest, GetResponse, InsertRequest, InsertResponse, UpsertRequest, UpsertResponse, RemoveRequest, RemoveResponse, ReplaceRequest, ReplaceResponse, TouchRequest, TouchResponse, UnlockRequest, UnlockResponse} from "./generated/couchbase/kv.v1_pb"
+import {
+  DocumentContentTypeMap,
+  ExistsRequest,
+  ExistsResponse,
+  GetAndLockRequest,
+  GetAndTouchRequest,
+  GetRequest,
+  GetResponse,
+  InsertRequest,
+  InsertResponse,
+  LookupInRequest,
+  LookupInResponse,
+  MutateInRequest,
+  MutateInResponse,
+  RemoveRequest,
+  RemoveResponse,
+  ReplaceRequest,
+  ReplaceResponse,
+  TouchRequest,
+  TouchResponse,
+  UnlockRequest,
+  UnlockResponse,
+  UpsertRequest,
+  UpsertResponse,
+} from "./generated/couchbase/kv.v1_pb"
 import { KvClient } from './generated/couchbase/kv.v1_grpc_pb'
-
-import { ApiImplementation } from '../generaltypes'
+import { errorFromProtostellar } from './errors'
+import { ApiImplementation, DurabilityLevel, StoreSemantics } from '../generaltypes'
 import { Bucket } from './bucket'
 import { Cluster } from './cluster'
 import { Scope } from './scope'
@@ -12,19 +35,36 @@ import {
   ExistsResult,
   GetReplicaResult,
   GetResult,
-  // LookupInResult,
-  // LookupInResultEntry,
-  // MutateInResult,
-  // MutateInResultEntry,
+  LookupInResult,
+  LookupInResultEntry,
+  MutateInResult,
+  MutateInResultEntry,
   MutationResult,
 } from '../crudoptypes'
-
+import { LookupInMacro, LookupInSpec, MutateInSpec } from '../sdspecs'
+import { toProtostellarLookupInSpecs, toProtostellarMutateInSpecs } from './sdspecs';
 import { Transcoder } from '../transcoders'
-import { ExistsOptions, GetAllReplicasOptions, GetAndLockOptions, GetAndTouchOptions, GetAnyReplicaOptions, GetOptions, InsertOptions, RemoveOptions, ReplaceOptions, TouchOptions, UnlockOptions, UpsertOptions } from '../collection'
+import { 
+  ExistsOptions,
+  GetAllReplicasOptions,
+  GetAndLockOptions,
+  GetAndTouchOptions,
+  GetAnyReplicaOptions,
+  GetOptions,
+  InsertOptions,
+  LookupInOptions,
+  MutateInOptions,
+  RemoveOptions,
+  ReplaceOptions,
+  TouchOptions,
+  UnlockOptions,
+  UpsertOptions,
+} from '../collection'
 import { expiryToTimestamp, NodeCallback, PromiseHelper } from '../utilities'
 import { StreamableReplicasPromise } from '../streamablepromises'
 import { MutationToken } from './mutationstate'
 import exp from 'constants';
+import { InvalidArgumentError } from '../errors';
 
 /**
  * Exposes the operations which are available to be performed against a collection.
@@ -122,6 +162,33 @@ export class Collection {
   }
 
   /**
+  @internal
+  */
+  _mutationTimeout(durabilityLevel?: DurabilityLevel): number {
+    if (
+      durabilityLevel !== undefined &&
+      durabilityLevel !== null &&
+      durabilityLevel !== DurabilityLevel.None
+    ) {
+      return this.cluster.kvDurableTimeout
+    }
+    return this.cluster.kvTimeout
+  }  
+
+  /**
+   * @internal
+   */
+  _subdocDecode(bytes: string | Uint8Array): any {
+    try {
+      return JSON.parse(Buffer.from(bytes).toString('utf8'))
+    } catch (e) {
+      // If we encounter a parse error, assume that we need
+      // to return bytes instead of an object.
+      return bytes
+    }
+  }
+
+  /**
    * The name of the collection this Collection object references.
    */
   get name(): string {
@@ -160,7 +227,8 @@ export class Collection {
       this._kvService.get(
         req,
         {deadline: deadline},
-        (err: Error | null, resp: ExistsResponse) => {
+        (psErr: Error | null, resp: ExistsResponse) => {
+          const err = errorFromProtostellar(psErr)
           if (err) {
             return wrapCallback(err, null)
           }
@@ -197,12 +265,14 @@ export class Collection {
     req.setBucketName(this._scope.bucket.name)
     req.setScopeName(this._scope.name)
     req.setCollectionName(this.name)
+    // TODO:  with_expiry + projections
 
     return PromiseHelper.wrap((wrapCallback) => {
       this._kvService.get(
         req,
         {deadline: deadline},
-        (err: Error | null, resp: GetResponse) => {
+        (psErr: Error | null, resp: GetResponse) => {
+          const err = errorFromProtostellar(psErr)
           if (err) {
             return wrapCallback(err, null)
           }
@@ -311,20 +381,27 @@ export class Collection {
     callback?: NodeCallback<MutationResult>
   ): Promise<MutationResult> {
     if (options instanceof Function) {
-      callback = arguments[1]
+      callback = arguments[2]
       options = undefined
     }
     if (!options) {
       options = {}
     }
 
+    const expiry = options.expiry
     const transcoder = options.transcoder || this.transcoder
-    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
+    const durabilityLevel = options.durabilityLevel
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
+    const deadline = Date.now() + (options.timeout || this._mutationTimeout(durabilityLevel))
     const req = new InsertRequest()
     req.setKey(key)
     req.setBucketName(this._scope.bucket.name)
     req.setScopeName(this._scope.name)
     req.setCollectionName(this.name)
+    if(expiry){
+      req.setExpiry(expiryToTimestamp(expiry))
+    }
 
     return PromiseHelper.wrap((wrapCallback) => {
       this._encodeDoc(transcoder, value, (err, bytes, contentType) => {
@@ -336,11 +413,16 @@ export class Collection {
         this._kvService.insert(
           req,
           {deadline: deadline},
-          (err: Error | null, resp: InsertResponse) => {
+          (psErr: Error | null, resp: InsertResponse) => {
+            const err = errorFromProtostellar(psErr)
             if (err) {
               return wrapCallback(err, null)
             }
-            return wrapCallback(null, new MutationResult({cas:resp.getCas(), token:MutationToken.fromResponse(resp.getMutationToken())}))
+            return wrapCallback(null,
+              new MutationResult({
+                cas:resp.getCas(),
+                token:MutationToken.fromResponse(resp.getMutationToken())
+              }))
           }
         )
       })
@@ -354,20 +436,34 @@ export class Collection {
     callback?: NodeCallback<MutationResult>
   ): Promise<MutationResult> {
     if (options instanceof Function) {
-      callback = arguments[1]
+      callback = arguments[2]
       options = undefined
     }
     if (!options) {
       options = {}
     }
 
+    const expiry = options.expiry
+    const preserveExpiry = options.preserveExpiry
     const transcoder = options.transcoder || this.transcoder
-    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
+    const durabilityLevel = options.durabilityLevel
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
+    const deadline = Date.now() + (options.timeout || this._mutationTimeout(durabilityLevel))
+
     const req = new UpsertRequest()
     req.setKey(key)
     req.setBucketName(this._scope.bucket.name)
     req.setScopeName(this._scope.name)
     req.setCollectionName(this.name)
+    if(expiry && (options.preserveExpiry || false)){
+      throw new InvalidArgumentError(new Error('Cannot set expiry and preserveExpiry options for upsert operation.'))
+    }
+    if(expiry && !preserveExpiry){
+      req.setExpiry(expiryToTimestamp(expiry))
+    }
+    // TODO:  handle preseverExpiry === false, cannot reset expiry a.t.m.
+    // default as of now is to preserve expiry
 
     return PromiseHelper.wrap((wrapCallback) => {
       this._encodeDoc(transcoder, value, (err, bytes, contentType) => {
@@ -379,11 +475,16 @@ export class Collection {
         this._kvService.upsert(
           req,
           {deadline: deadline},
-          (err: Error | null, resp: UpsertResponse) => {
+          (psErr: Error | null, resp: UpsertResponse) => {
+            const err = errorFromProtostellar(psErr)
             if (err) {
               return wrapCallback(err, null)
             }
-            return wrapCallback(null, new MutationResult({cas:resp.getCas(), token:MutationToken.fromResponse(resp.getMutationToken())}))
+            return wrapCallback(null,
+              new MutationResult({
+                cas:resp.getCas(),
+                token:MutationToken.fromResponse(resp.getMutationToken())
+              }))
           }
         )
       })
@@ -397,21 +498,34 @@ export class Collection {
     callback?: NodeCallback<MutationResult>
   ): Promise<MutationResult> {
     if (options instanceof Function) {
-      callback = arguments[1]
+      callback = arguments[2]
       options = undefined
     }
     if (!options) {
       options = {}
     }
 
+    const expiry = options.expiry
     const cas = options.cas
+    const preserveExpiry = options.preserveExpiry
     const transcoder = options.transcoder || this.transcoder
-    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
+    const durabilityLevel = options.durabilityLevel
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
+    const deadline = Date.now() + (options.timeout || this._mutationTimeout(durabilityLevel))
     const req = new ReplaceRequest()
     req.setKey(key)
     req.setBucketName(this._scope.bucket.name)
     req.setScopeName(this._scope.name)
     req.setCollectionName(this.name)
+    if(expiry && (options.preserveExpiry || false)){
+      throw new InvalidArgumentError(new Error('Cannot set expiry and preserveExpiry options for replace operation.'))
+    }
+    if(expiry && !preserveExpiry){
+      req.setExpiry(expiryToTimestamp(expiry))
+    }
+    // TODO:  handle preseverExpiry === false, cannot reset expiry a.t.m.
+    // default as of now is to preserve expiry
     
 
     return PromiseHelper.wrap((wrapCallback) => {
@@ -428,11 +542,16 @@ export class Collection {
         this._kvService.replace(
           req,
           {deadline: deadline},
-          (err: Error | null, resp: ReplaceResponse) => {
+          (psErr: Error | null, resp: ReplaceResponse) => {
+            const err = errorFromProtostellar(psErr)
             if (err) {
               return wrapCallback(err, null)
             }
-            return wrapCallback(null, new MutationResult({cas:resp.getCas(), token:MutationToken.fromResponse(resp.getMutationToken())}))
+            return wrapCallback(null,
+              new MutationResult({
+                cas:resp.getCas(),
+                token: MutationToken.fromResponse(resp.getMutationToken())
+              }))
           }
         )
       })
@@ -452,13 +571,19 @@ export class Collection {
       options = {}
     }
 
-    const cas = options.cas
-    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
+    const cas = options.cas as number
+    const durabilityLevel = options.durabilityLevel
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
+    const deadline = Date.now() + (options.timeout || this._mutationTimeout(durabilityLevel))
     const req = new RemoveRequest()
     req.setKey(key)
     req.setBucketName(this._scope.bucket.name)
     req.setScopeName(this._scope.name)
     req.setCollectionName(this.name)
+    if(cas){
+      req.setCas(cas)
+    }
 
     return PromiseHelper.wrap((wrapCallback) => {
       if(cas){
@@ -467,11 +592,16 @@ export class Collection {
       this._kvService.remove(
         req,
         {deadline: deadline},
-        (err: Error | null, resp: RemoveResponse) => {
+        (psErr: Error | null, resp: RemoveResponse) => {
+          const err = errorFromProtostellar(psErr)
           if (err) {
             return wrapCallback(err, null)
           }
-          return wrapCallback(null, new MutationResult({cas:resp.getCas(), token:MutationToken.fromResponse(resp.getMutationToken())}))
+          return wrapCallback(null,
+            new MutationResult({
+              cas: resp.getCas(),
+              token: MutationToken.fromResponse(resp.getMutationToken())
+            }))
         }
       )
     }, callback)
@@ -514,7 +644,8 @@ export class Collection {
       this._kvService.getAndTouch(
         req,
         {deadline: deadline},
-        (err: Error | null, resp: GetResponse) => {
+        (psErr: Error | null, resp: GetResponse) => {
+          const err = errorFromProtostellar(psErr)
           if (err) {
             return wrapCallback(err, null)
           }
@@ -577,7 +708,8 @@ export class Collection {
       this._kvService.touch(
         req,
         {deadline: deadline},
-        (err: Error | null, resp: TouchResponse) => {
+        (psErr: Error | null, resp: TouchResponse) => {
+          const err = errorFromProtostellar(psErr)
           if (err) {
             return wrapCallback(err, null)
           }
@@ -623,7 +755,8 @@ export class Collection {
       this._kvService.getAndLock(
         req,
         {deadline: deadline},
-        (err: Error | null, resp: GetResponse) => {
+        (psErr: Error | null, resp: GetResponse) => {
+          const err = errorFromProtostellar(psErr)
           if (err) {
             return wrapCallback(err, null)
           }
@@ -687,7 +820,8 @@ export class Collection {
       this._kvService.unlock(
         req,
         {deadline: deadline},
-        (err: Error | null, resp: UnlockResponse) => {
+        (psErr: Error | null, resp: UnlockResponse) => {
+          const err = errorFromProtostellar(psErr)
           if (err) {
             return wrapCallback(err, null)
           }
@@ -695,6 +829,147 @@ export class Collection {
         }
       )
     }, callback)
+  }
+
+  /**
+   * Performs a lookup-in operation against a document, fetching individual fields or
+   * information about specific fields inside the document value.
+   *
+   * @param key The document key to look in.
+   * @param specs A list of specs describing the data to fetch from the document.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  lookupIn(
+    key: string,
+    specs: LookupInSpec[],
+    options?: LookupInOptions,
+    callback?: NodeCallback<LookupInResult>
+  ): Promise<LookupInResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const specList = toProtostellarLookupInSpecs(specs)
+    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
+
+    const req = new LookupInRequest()
+    req.setKey(key)
+    req.setBucketName(this._scope.bucket.name)
+    req.setScopeName(this._scope.name)
+    req.setCollectionName(this.name)
+    req.setSpecsList(specList)
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._kvService.lookupIn(
+        req,
+        {deadline: deadline},
+        (psErr: Error | null, resp: LookupInResponse) => {
+          const err = errorFromProtostellar(psErr)
+          if (err) {
+            return wrapCallback(err, null)
+          }
+          const content: LookupInResultEntry[] = []
+          resp.getSpecsList().forEach((spec) => {
+            const value = this._subdocDecode(spec.getContent())
+            content.push(
+              new LookupInResultEntry({
+                error: null,
+                value: value,
+              })
+            )
+          })
+
+          wrapCallback(
+            null,
+            new LookupInResult({
+              content: content,
+              cas: resp.getCas(),
+            })
+          )          
+        }
+      )
+    }, callback)
+
+  }
+
+  /**
+   * Performs a mutate-in operation against a document.  Allowing atomic modification of
+   * specific fields within a document.  Also enables access to document extended-attributes.
+   *
+   * @param key The document key to mutate.
+   * @param specs A list of specs describing the operations to perform on the document.
+   * @param options Optional parameters for this operation.
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  mutateIn(
+    key: string,
+    specs: MutateInSpec[],
+    options?: MutateInOptions,
+    callback?: NodeCallback<MutateInResult>
+  ): Promise<MutateInResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const specList = toProtostellarMutateInSpecs(specs)
+    const storeSemantics = options.upsertDocument
+      ? StoreSemantics.Upsert
+      : options.storeSemantics
+    const expiry = options.expiry
+    const preserveExpiry = options.preserveExpiry
+    const cas = options.cas
+    const durabilityLevel = options.durabilityLevel
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
+    const deadline = Date.now() + (options.timeout || this._mutationTimeout(durabilityLevel))
+
+    const req = new MutateInRequest()
+    req.setKey(key)
+    req.setBucketName(this._scope.bucket.name)
+    req.setScopeName(this._scope.name)
+    req.setCollectionName(this.name)
+    req.setSpecsList(specList)
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._kvService.mutateIn(
+        req,
+        {deadline: deadline},
+        (psErr: Error | null, resp: MutateInResponse) => {
+          const err = errorFromProtostellar(psErr)
+          if (err) {
+            return wrapCallback(err, null)
+          }
+          const content: MutateInResultEntry[] = []
+          resp.getSpecsList().forEach((spec) => {
+            const value = this._subdocDecode(spec.getContent())
+            content.push(
+              new MutateInResultEntry({
+                value: value,
+              })
+            )
+          })
+
+          wrapCallback(
+            null,
+            new MutateInResult({
+              content: content,
+              cas: resp.getCas(),
+              token: MutationToken.fromResponse(resp.getMutationToken())
+            })
+          )          
+        }
+      )
+    }, callback)
+
   }
 
 }

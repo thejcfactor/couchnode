@@ -136,3 +136,147 @@ export class GetReplicaResult {
     this.isReplica = data.isReplica
   }
 }
+
+/**
+ * Contains the results of a specific sub-operation within a lookup-in operation.
+ *
+ * @category Key-Value
+ */
+export class LookupInResultEntry {
+  /**
+   * The error, if any, which occured when attempting to perform this sub-operation.
+   */
+  error: Error | null
+
+  /**
+   * The value returned by the sub-operation.
+   */
+  value?: any
+
+  /**
+   * @internal
+   */
+  constructor(data: LookupInResultEntry) {
+    this.error = data.error
+    this.value = data.value
+  }
+}
+
+/**
+ * Contains the results of a lookup-in operation.
+ *
+ * @category Key-Value
+ */
+export class LookupInResult {
+  /**
+   * A list of result entries for each sub-operation performed.
+   */
+  content: LookupInResultEntry[]
+  /**
+   * The cas of the document.
+   */
+  cas: Cas | number
+
+  /**
+   * @internal
+   */
+  constructor(data: { content: LookupInResultEntry[]; cas: Cas | number }) {
+    this.content = data.content
+    this.cas = data.cas
+  }
+
+  /**
+   * BUG(JSCBC-730): Previously held the content of the document.
+   *
+   * @deprecated Use {@link LookupInResult.content} instead.
+   */
+  get results(): LookupInResultEntry[] {
+    return this.content
+  }
+  set results(v: LookupInResultEntry[]) {
+    this.content = v
+  }
+}
+
+/**
+ * Contains the results of a specific sub-operation within a mutate-in operation.
+ *
+ * @category Key-Value
+ */
+export class MutateInResultEntry {
+  /**
+   * The resulting value after the completion of the sub-operation.  This namely
+   * returned in the case of a counter operation (increment/decrement) and is not
+   * included for general operations.
+   */
+  value: any | undefined
+
+  /**
+   * @internal
+   */
+  constructor(data: MutateInResultEntry) {
+    this.value = data.value
+  }
+}
+
+/**
+ * Contains the results of a mutate-in operation.
+ *
+ * @category Key-Value
+ */
+export class MutateInResult {
+  /**
+   * A list of result entries for each sub-operation performed.
+   */
+  content: MutateInResultEntry[]
+
+  /**
+   * The updated CAS for the document.
+   */
+  cas: Cas | number
+
+  /**
+   * The token representing the mutation performed.
+   */
+  token?: ClassicMutationToken | ProtostellarMutationToken
+
+  /**
+   * @internal
+   */
+  constructor(data: MutateInResult) {
+    this.content = data.content
+    this.cas = data.cas
+    this.token = data.token
+  }
+}
+
+/**
+ * Contains the results of a counter operation (binary increment/decrement).
+ *
+ * @category Key-Value
+ */
+export class CounterResult {
+  /**
+   * The new value of the document after the operation completed.
+   */
+  value: number
+
+  /**
+   * The updated CAS for the document.
+   */
+  cas: Cas
+
+  /**
+   * The token representing the mutation performed.
+   */
+  token?: ClassicMutationToken | ProtostellarMutationToken
+
+  /**
+   * @internal
+   */
+  constructor(data: CounterResult) {
+    this.value = data.value
+    this.cas = data.cas
+    this.token = data.token
+  }
+}

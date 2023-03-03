@@ -251,6 +251,24 @@ export class Cluster {
     )
   }
 
+  /**
+   * Shuts down this cluster object.  Cleaning up all resources associated with it.
+   *
+   * @param callback A node-style callback to be invoked after execution.
+   */
+  async close(callback?: NodeCallback<void>): Promise<void> {
+    // if (this._transactions) {
+    //   await this._transactions._close()
+    //   this._transactions = undefined
+    // }
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._conn.shutdown((cppErr) => {
+        wrapCallback(errorFromCpp(cppErr))
+      })
+    }, callback)
+  }
+
   async _connectHelper(){
     return this._connect()
   }
