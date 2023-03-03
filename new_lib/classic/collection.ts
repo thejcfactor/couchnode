@@ -1,3 +1,6 @@
+import {
+  BinaryCollection,
+} from './binarycollection'
 import binding, {
   CppDocumentId,
   CppConnection,
@@ -22,7 +25,7 @@ import { LookupInMacro, LookupInSpec, MutateInSpec } from '../sdspecs'
 import { toCppLookupInSpecs, toCppMutateInSpecs } from './sdspecs'
 import { Transcoder } from '../transcoders'
 import {
-  // CounterResult,
+  CounterResult,
   ExistsResult,
   GetReplicaResult,
   GetResult,
@@ -39,7 +42,13 @@ import {
   replicateToToCpp,
   storeSemanticToCpp,
 } from './bindingutilities'
-import { 
+import {
+  AppendOptions,
+  DecrementOptions,
+  IncrementOptions,
+  PrependOptions,
+} from '../binarycollection'
+import {
   ExistsOptions,
   GetAllReplicasOptions,
   GetAndLockOptions,
@@ -1302,6 +1311,312 @@ export class Collection {
             durability_level: durabilityToCpp(durabilityLevel),
           },
           mutateInCallback
+        )
+      }
+    }, callback)
+  }
+
+  /**
+   * Returns a BinaryCollection object reference, allowing access to various
+   * binary operations possible against a collection.
+   */
+  binary(): BinaryCollection {
+    return new BinaryCollection(this)
+  }
+
+  /**
+   * @internal
+   */
+  _binaryIncrement(
+    key: string,
+    delta: number,
+    options?: IncrementOptions,
+    callback?: NodeCallback<CounterResult>
+  ): Promise<CounterResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const initial_value = options.initial
+    const expiry = options.expiry
+    const durabilityLevel = options.durabilityLevel
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
+    const timeout = options.timeout || this.cluster.kvTimeout
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      const incrementReq = {
+        id: this._cppDocId(key),
+        delta,
+        initial_value,
+        expiry: expiry || 0,
+        timeout,
+        partition: 0,
+        opaque: 0,
+      }
+
+      const incrementCallback = (
+        cppErr: CppError | null,
+        resp: CppIncrementResponse
+      ) => {
+        const err = errorFromCpp(cppErr)
+        if (err) {
+          return wrapCallback(err, null)
+        }
+
+        wrapCallback(
+          err,
+          new CounterResult({
+            cas: resp.cas,
+            token: resp.token,
+            value: resp.content,
+          })
+        )
+      }
+
+      if (persistTo || replicateTo) {
+        this._conn.incrementWithLegacyDurability(
+          {
+            ...incrementReq,
+            persist_to: persistToToCpp(persistTo),
+            replicate_to: replicateToToCpp(replicateTo),
+          },
+          incrementCallback
+        )
+      } else {
+        this._conn.increment(
+          {
+            ...incrementReq,
+            durability_level: durabilityToCpp(durabilityLevel),
+          },
+          incrementCallback
+        )
+      }
+    }, callback)
+  }
+
+  /**
+   * @internal
+   */
+  _binaryDecrement(
+    key: string,
+    delta: number,
+    options?: DecrementOptions,
+    callback?: NodeCallback<CounterResult>
+  ): Promise<CounterResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const initial_value = options.initial
+    const expiry = options.expiry
+    const durabilityLevel = options.durabilityLevel
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
+    const timeout = options.timeout || this.cluster.kvTimeout
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      const decrementReq = {
+        id: this._cppDocId(key),
+        delta,
+        initial_value,
+        expiry: expiry || 0,
+        timeout,
+        partition: 0,
+        opaque: 0,
+      }
+
+      const decrementCallback = (
+        cppErr: CppError | null,
+        resp: CppDecrementResponse
+      ) => {
+        const err = errorFromCpp(cppErr)
+        if (err) {
+          return wrapCallback(err, null)
+        }
+
+        wrapCallback(
+          err,
+          new CounterResult({
+            cas: resp.cas,
+            token: resp.token,
+            value: resp.content,
+          })
+        )
+      }
+
+      if (persistTo || replicateTo) {
+        this._conn.decrementWithLegacyDurability(
+          {
+            ...decrementReq,
+            persist_to: persistToToCpp(persistTo),
+            replicate_to: replicateToToCpp(replicateTo),
+          },
+          decrementCallback
+        )
+      } else {
+        this._conn.decrement(
+          {
+            ...decrementReq,
+            durability_level: durabilityToCpp(durabilityLevel),
+          },
+          decrementCallback
+        )
+      }
+    }, callback)
+  }
+
+  /**
+   * @internal
+   */
+  _binaryAppend(
+    key: string,
+    value: string | Buffer,
+    options?: AppendOptions,
+    callback?: NodeCallback<MutationResult>
+  ): Promise<MutationResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const durabilityLevel = options.durabilityLevel
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
+    const timeout = options.timeout || this.cluster.kvTimeout
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      if (!Buffer.isBuffer(value)) {
+        value = Buffer.from(value)
+      }
+
+      const appendReq = {
+        id: this._cppDocId(key),
+        value,
+        timeout,
+        partition: 0,
+        opaque: 0,
+      }
+
+      const appendCallback = (
+        cppErr: CppError | null,
+        resp: CppAppendResponse
+      ) => {
+        const err = errorFromCpp(cppErr)
+        if (err) {
+          return wrapCallback(err, null)
+        }
+
+        wrapCallback(
+          err,
+          new MutationResult({
+            cas: resp.cas,
+            token: resp.token,
+          })
+        )
+      }
+
+      if (persistTo || replicateTo) {
+        this._conn.appendWithLegacyDurability(
+          {
+            ...appendReq,
+            persist_to: persistToToCpp(persistTo),
+            replicate_to: replicateToToCpp(replicateTo),
+          },
+          appendCallback
+        )
+      } else {
+        this._conn.append(
+          {
+            ...appendReq,
+            durability_level: durabilityToCpp(durabilityLevel),
+          },
+          appendCallback
+        )
+      }
+    }, callback)
+  }
+
+  /**
+   * @internal
+   */
+  _binaryPrepend(
+    key: string,
+    value: string | Buffer,
+    options?: PrependOptions,
+    callback?: NodeCallback<MutationResult>
+  ): Promise<MutationResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const durabilityLevel = options.durabilityLevel
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
+    const timeout = options.timeout || this.cluster.kvTimeout
+
+    return PromiseHelper.wrap((wrapCallback) => {
+      if (!Buffer.isBuffer(value)) {
+        value = Buffer.from(value)
+      }
+
+      const prependReq = {
+        id: this._cppDocId(key),
+        value,
+        timeout,
+        partition: 0,
+        opaque: 0,
+      }
+
+      const prependCallback = (
+        cppErr: CppError | null,
+        resp: CppPrependResponse
+      ) => {
+        const err = errorFromCpp(cppErr)
+        if (err) {
+          return wrapCallback(err, null)
+        }
+
+        wrapCallback(
+          err,
+          new MutationResult({
+            cas: resp.cas,
+            token: resp.token,
+          })
+        )
+      }
+
+      if (persistTo || replicateTo) {
+        this._conn.prependWithLegacyDurability(
+          {
+            ...prependReq,
+            persist_to: persistToToCpp(persistTo),
+            replicate_to: replicateToToCpp(replicateTo),
+          },
+          prependCallback
+        )
+      } else {
+        this._conn.prepend(
+          {
+            ...prependReq,
+            durability_level: durabilityToCpp(durabilityLevel),
+          },
+          prependCallback
         )
       }
     }, callback)

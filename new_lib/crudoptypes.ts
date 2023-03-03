@@ -264,7 +264,7 @@ export class CounterResult {
   /**
    * The updated CAS for the document.
    */
-  cas: Cas
+  cas: Cas | number
 
   /**
    * The token representing the mutation performed.

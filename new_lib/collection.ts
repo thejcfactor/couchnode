@@ -1,3 +1,6 @@
+import {
+  BinaryCollection,
+} from './binarycollection'
 import { Collection as ClassicCollection } from './classic/collection'
 import { Collection as ProtostellarCollection } from './protostellar/collection'
 import { Scope as ClassicScope } from './classic/scope'
@@ -413,6 +416,13 @@ export class Collection {
     }
   }
 
+  /**
+   * @internal
+   */
+  get impl(): ClassicCollection | ProtostellarCollection {
+    return this._impl
+  }
+
   get apiImplementation(): ApiImplementation {
     return this._impl.scope.apiImplementation
   }
@@ -617,5 +627,13 @@ export class Collection {
     callback?: NodeCallback<MutateInResult>
   ): Promise<MutateInResult> {
     return this._impl.mutateIn(key, specs, options, callback)
+  }
+
+  /**
+   * Returns a BinaryCollection object reference, allowing access to various
+   * binary operations possible against a collection.
+   */
+  binary(): BinaryCollection {
+    return new BinaryCollection(this)
   }
 }

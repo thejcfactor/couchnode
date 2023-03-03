@@ -1,5 +1,12 @@
+import {
+  BinaryCollection,
+} from './binarycollection'
 import { ChannelCredentials } from '@grpc/grpc-js';
 import {
+  AppendRequest,
+  AppendResponse,
+  DecrementRequest,
+  DecrementResponse,
   DocumentContentTypeMap,
   ExistsRequest,
   ExistsResponse,
@@ -7,12 +14,16 @@ import {
   GetAndTouchRequest,
   GetRequest,
   GetResponse,
+  IncrementRequest,
+  IncrementResponse,
   InsertRequest,
   InsertResponse,
   LookupInRequest,
   LookupInResponse,
   MutateInRequest,
   MutateInResponse,
+  PrependRequest,
+  PrependResponse,
   RemoveRequest,
   RemoveResponse,
   ReplaceRequest,
@@ -31,7 +42,7 @@ import { Bucket } from './bucket'
 import { Cluster } from './cluster'
 import { Scope } from './scope'
 import {
-  // CounterResult,
+  CounterResult,
   ExistsResult,
   GetReplicaResult,
   GetResult,
@@ -44,6 +55,12 @@ import {
 import { LookupInMacro, LookupInSpec, MutateInSpec } from '../sdspecs'
 import { toProtostellarLookupInSpecs, toProtostellarMutateInSpecs } from './sdspecs';
 import { Transcoder } from '../transcoders'
+import {
+  AppendOptions,
+  DecrementOptions,
+  IncrementOptions,
+  PrependOptions,
+} from '../binarycollection'
 import { 
   ExistsOptions,
   GetAllReplicasOptions,
@@ -713,7 +730,11 @@ export class Collection {
           if (err) {
             return wrapCallback(err, null)
           }
-          return wrapCallback(null, new MutationResult({cas:resp.getCas(), token:MutationToken.fromResponse(resp.getMutationToken())}))
+          return wrapCallback(null,
+            new MutationResult({
+              cas:resp.getCas(),
+              token:MutationToken.fromResponse(resp.getMutationToken())
+            }))
         }
       )
     }, callback)
@@ -970,6 +991,230 @@ export class Collection {
       )
     }, callback)
 
+  }
+
+  /**
+   * Returns a BinaryCollection object reference, allowing access to various
+   * binary operations possible against a collection.
+   */
+  binary(): BinaryCollection {
+    return new BinaryCollection(this)
+  }
+
+  /**
+   * @internal
+   */
+  _binaryIncrement(
+    key: string,
+    delta: number,
+    options?: IncrementOptions,
+    callback?: NodeCallback<CounterResult>
+  ): Promise<CounterResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const initialValue = options.initial
+    const expiry = options.expiry
+    const durabilityLevel = options.durabilityLevel
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
+    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
+
+    const req = new IncrementRequest()
+    req.setKey(key)
+    req.setBucketName(this._scope.bucket.name)
+    req.setScopeName(this._scope.name)
+    req.setCollectionName(this.name)
+    req.setDelta(delta)
+    if(initialValue){
+      req.setInitial(initialValue)
+    }
+    if(expiry){
+      req.setExpiry(expiryToTimestamp(expiry))
+    }
+    
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._kvService.increment(
+        req,
+        {deadline: deadline},
+        (psErr: Error | null, resp: IncrementResponse) => {
+          const err = errorFromProtostellar(psErr)
+          if (err) {
+            return wrapCallback(err, null)
+          }
+          return wrapCallback(null,
+            new CounterResult({
+              value: resp.getContent(),
+              cas: resp.getCas(),
+              token: MutationToken.fromResponse(resp.getMutationToken())
+            }))
+        }
+      )
+    }, callback)
+  }
+
+  /**
+   * @internal
+   */
+  _binaryDecrement(
+    key: string,
+    delta: number,
+    options?: DecrementOptions,
+    callback?: NodeCallback<CounterResult>
+  ): Promise<CounterResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const initialValue = options.initial
+    const expiry = options.expiry
+    const durabilityLevel = options.durabilityLevel
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
+    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
+
+    const req = new DecrementRequest()
+    req.setKey(key)
+    req.setBucketName(this._scope.bucket.name)
+    req.setScopeName(this._scope.name)
+    req.setCollectionName(this.name)
+    req.setDelta(delta)
+    if(initialValue){
+      req.setInitial(initialValue)
+    }
+    if(expiry){
+      req.setExpiry(expiryToTimestamp(expiry))
+    }
+    
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._kvService.decrement(
+        req,
+        {deadline: deadline},
+        (psErr: Error | null, resp: DecrementResponse) => {
+          const err = errorFromProtostellar(psErr)
+          if (err) {
+            return wrapCallback(err, null)
+          }
+          return wrapCallback(null,
+            new CounterResult({
+              value: resp.getContent(),
+              cas: resp.getCas(),
+              token: MutationToken.fromResponse(resp.getMutationToken())
+            }))
+        }
+      )
+    }, callback)
+  }
+
+  /**
+   * @internal
+   */
+  _binaryAppend(
+    key: string,
+    value: string | Buffer,
+    options?: AppendOptions,
+    callback?: NodeCallback<MutationResult>
+  ): Promise<MutationResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const durabilityLevel = options.durabilityLevel
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
+    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
+
+    const req = new AppendRequest()
+    req.setKey(key)
+    req.setBucketName(this._scope.bucket.name)
+    req.setScopeName(this._scope.name)
+    req.setCollectionName(this.name)
+    if (!Buffer.isBuffer(value)) {
+      value = Buffer.from(value)
+    }
+    req.setContent(value)
+    
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._kvService.append(
+        req,
+        {deadline: deadline},
+        (psErr: Error | null, resp: AppendResponse) => {
+          const err = errorFromProtostellar(psErr)
+          if (err) {
+            return wrapCallback(err, null)
+          }
+          return wrapCallback(null,
+            new MutationResult({
+              cas: resp.getCas(),
+              token: MutationToken.fromResponse(resp.getMutationToken())
+            }))
+        }
+      )
+    }, callback)
+  }
+
+  /**
+   * @internal
+   */
+  _binaryPrepend(
+    key: string,
+    value: string | Buffer,
+    options?: PrependOptions,
+    callback?: NodeCallback<MutationResult>
+  ): Promise<MutationResult> {
+    if (options instanceof Function) {
+      callback = arguments[2]
+      options = undefined
+    }
+    if (!options) {
+      options = {}
+    }
+
+    const durabilityLevel = options.durabilityLevel
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
+    const deadline = Date.now() + (options.timeout || this.cluster.kvTimeout)
+
+    const req = new PrependRequest()
+    req.setKey(key)
+    req.setBucketName(this._scope.bucket.name)
+    req.setScopeName(this._scope.name)
+    req.setCollectionName(this.name)
+    if (!Buffer.isBuffer(value)) {
+      value = Buffer.from(value)
+    }
+    req.setContent(value)
+    
+    return PromiseHelper.wrap((wrapCallback) => {
+      this._kvService.prepend(
+        req,
+        {deadline: deadline},
+        (psErr: Error | null, resp: PrependResponse) => {
+          const err = errorFromProtostellar(psErr)
+          if (err) {
+            return wrapCallback(err, null)
+          }
+          return wrapCallback(null,
+            new MutationResult({
+              cas: resp.getCas(),
+              token: MutationToken.fromResponse(resp.getMutationToken())
+            }))
+        }
+      )
+    }, callback)
   }
 
 }

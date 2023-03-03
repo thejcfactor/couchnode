@@ -830,7 +830,7 @@ function genericTests(collFn) {
       testKeyBin = H.genTestKey()
 
       await collFn().insert(testKeyBin, 14)
-      H.skipIfProtostellar(this, 'TBD - durability not implemented')
+      // H.skipIfProtostellar(this, 'TBD - durability not implemented')
     })
 
     after(async function () {

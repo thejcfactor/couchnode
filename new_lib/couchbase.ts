@@ -22,7 +22,7 @@ export async function connect(
 // export * from './analyticsindexmanager'
 // export * from './analyticstypes'
 export * from './authenticators'
-// export * from './binarycollection'
+export * from './binarycollection'
 export * from './bucket'
 // export * from './bucketmanager'
 export * from './cluster'
