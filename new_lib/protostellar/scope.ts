@@ -6,9 +6,9 @@ import { Transcoder } from '../transcoders'
 import { NodeCallback, PromiseHelper } from '../utilities'
 import { Bucket } from './bucket'
 import { Cluster } from './cluster'
-import { QueryClient } from './generated/couchbase/query.v1_grpc_pb'
+import { QueryServiceClient } from './generated/couchbase/query/v1/query_grpc_pb'
 import { QueryExecutor } from './queryexecutor'
-import { ChannelCredentials } from '@grpc/grpc-js'
+import { ChannelCredentials, Metadata } from '@grpc/grpc-js'
 
 /**
  * Exposes the operations which are available to be performed against a scope.
@@ -27,6 +27,7 @@ export class Scope {
   private _bucket: Bucket
   private _name: string
   private _channel: ChannelCredentials
+  private _metadata: Metadata
   // private _queryService: QueryClient
 
   /**
@@ -36,6 +37,7 @@ export class Scope {
     this._bucket = bucket
     this._name = scopeName
     this._channel = bucket.channel
+    this._metadata = bucket.metadata
     // this._queryService = new QueryClient(this._bucket.cluster.connStr, this.conn)
   }
 
@@ -70,7 +72,14 @@ export class Scope {
   /**
   @internal
   */
-  get queryService(): QueryClient {
+  get metadata(): Metadata {
+    return this._metadata
+  }
+
+  /**
+  @internal
+  */
+  get queryService(): QueryServiceClient {
     return this.cluster.queryService
   }
 

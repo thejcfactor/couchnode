@@ -1,6 +1,6 @@
 import {
   Authenticator,
-  // PasswordAuthenticator,
+  PasswordAuthenticator,
   // CertificateAuthenticator,
 } from '../authenticators'
 import { Bucket } from '../bucket'
@@ -12,17 +12,18 @@ import { QueryMetaData, QueryOptions, QueryResult } from '../querytypes'
 import { StreamableRowPromise } from '../streamablepromises'
 import { Transcoder, DefaultTranscoder } from '../transcoders'
 import { PromiseHelper, NodeCallback } from '../utilities'
-import { QueryClient } from './generated/couchbase/query.v1_grpc_pb'
+import { QueryServiceClient } from './generated/couchbase/query/v1/query_grpc_pb'
 import { QueryExecutor } from './queryexecutor'
 import * as grpc from '@grpc/grpc-js'
-import { ChannelCredentials } from '@grpc/grpc-js'
+import { ChannelCredentials, Metadata } from '@grpc/grpc-js'
 
 /**
  * @internal
  */
 class ProtostellarConnection {
-  private _channel?: ChannelCredentials | undefined
-  private _queryService?: QueryClient | undefined
+  private _channel: ChannelCredentials | undefined
+  private _queryService: QueryServiceClient | undefined
+  private _metadata: Metadata | undefined
 
   /**
    * @internal
@@ -41,12 +42,30 @@ class ProtostellarConnection {
     this._channel = channel
   }
 
+
+  /**
+   * @internal
+   */
+  get metadata(): Metadata {
+    if (!this._metadata) {
+      throw new Error('No gRPC Metadata for connection.')
+    }
+    return this._metadata
+  }
+
+  /**
+   * @internal
+   */
+  set metadata(metadata: Metadata | undefined) {
+    this._metadata = metadata
+  }
+
   /**
   @internal
   */
-  get queryService(): QueryClient {
+  get queryService(): QueryServiceClient {
     if (!this._queryService) {
-      throw new Error('No gRPC QueryClient for connection.')
+      throw new Error('No gRPC QueryServiceClient for connection.')
     }
     return this._queryService
   }
@@ -54,11 +73,11 @@ class ProtostellarConnection {
   /**
    * @internal
    */
-  set queryService(svc: QueryClient | undefined) {
+  set queryService(svc: QueryServiceClient | undefined) {
     this._queryService = svc
   }
 
-  constructor(channel?: ChannelCredentials, queryService?: QueryClient) {
+  constructor(channel?: ChannelCredentials, queryService?: QueryServiceClient) {
     this._channel = channel
     this._queryService = queryService
   }
@@ -89,7 +108,6 @@ export class Cluster {
   // private _transactions?: Transactions
   private _openBuckets: string[]
   private _dnsConfig: DnsConfig | null
-  private _queryService?: QueryClient
 
   /**
    * The API implementation for this Cluster object.
@@ -110,6 +128,13 @@ export class Cluster {
    */
   get connStr(): string {
     return this._connStr
+  }
+
+  /**
+   * @internal
+   */
+  get metadata(): Metadata {
+    return this._conn.metadata
   }
 
   /**
@@ -171,7 +196,7 @@ export class Cluster {
   /**
   @internal
   */
-  get queryService(): QueryClient {
+  get queryService(): QueryServiceClient {
     return this._conn.queryService
   }
 
@@ -356,27 +381,31 @@ export class Cluster {
         //   allowed_sasl_mechanisms: ['SCRAM-SHA512', 'SCRAM-SHA256', 'SCRAM-SHA1'],
         // }
 
-        // if (this._auth) {
-        //   const passAuth = this._auth as PasswordAuthenticator
-        //   if (passAuth.username || passAuth.password) {
+        if (this._auth) {
+          const passAuth = this._auth as PasswordAuthenticator
+          if (passAuth.username || passAuth.password) {
+            const token = Buffer.from(`${passAuth.username}:${passAuth.password}`)
+            const authStr = `Basic ${token.toString('base64')}`
+            this._conn.metadata = new Metadata()
+            this._conn.metadata.add('authorization', authStr)
         //     authOpts.username = passAuth.username
         //     authOpts.password = passAuth.password
 
         //     if (passAuth.allowed_sasl_mechanisms) {
         //       authOpts.allowed_sasl_mechanisms = passAuth.allowed_sasl_mechanisms
         //     }
-        //   }
+          }
 
         //   const certAuth = this._auth as CertificateAuthenticator
         //   if (certAuth.certificatePath || certAuth.keyPath) {
         //     authOpts.certificate_path = certAuth.certificatePath
         //     authOpts.key_path = certAuth.keyPath
         //   }
-        // }
+        }
 
         this._connStr = connStr
         this._conn.channel = grpc.credentials.createInsecure()
-        this._conn.queryService = new QueryClient(connStr, this._conn.channel)
+        this._conn.queryService = new QueryServiceClient(connStr, this._conn.channel)
 
         resolve(null)
       } catch (e) {

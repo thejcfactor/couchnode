@@ -31,7 +31,7 @@ import {
   MutateInResultEntry,
   MutationResult,
 } from '../crudoptypes'
-import { InvalidArgumentError } from '../errors'
+import { FeatureNotAvailableError, InvalidArgumentError } from '../errors'
 import {
   ApiImplementation,
   DurabilityLevel,
@@ -49,13 +49,12 @@ import { BinaryCollection } from './binarycollection'
 // import { Bucket } from './bucket'
 import { Cluster } from './cluster'
 import { errorFromProtostellar } from './errors'
-import { KvClient } from './generated/couchbase/kv.v1_grpc_pb'
+import { KvServiceClient } from './generated/couchbase/kv/v1/kv_grpc_pb'
 import {
   AppendRequest,
   AppendResponse,
   DecrementRequest,
   DecrementResponse,
-  DocumentContentTypeMap,
   ExistsRequest,
   ExistsResponse,
   GetAndLockRequest,
@@ -81,14 +80,16 @@ import {
   UnlockRequest,
   UpsertRequest,
   UpsertResponse,
-} from './generated/couchbase/kv.v1_pb'
+} from './generated/couchbase/kv/v1/kv_pb'
 import { MutationToken } from './mutationstate'
 import { Scope } from './scope'
 import {
   toProtostellarLookupInSpecs,
   toProtostellarMutateInSpecs,
+  isMutateInOpInSpecList,
 } from './sdspecs'
-import { ChannelCredentials } from '@grpc/grpc-js'
+import { toProtostellarDurabilityLevel } from './utilities'
+import { ChannelCredentials, Metadata } from '@grpc/grpc-js'
 
 /**
  * Exposes the operations which are available to be performed against a collection.
@@ -107,7 +108,8 @@ export class Collection {
   private _scope: Scope
   private _name: string
   private _channel: ChannelCredentials
-  private _kvService: KvClient
+  private _kvService: KvServiceClient
+  private _metadata: Metadata
 
   /**
   @internal
@@ -116,7 +118,8 @@ export class Collection {
     this._scope = scope
     this._name = collectionName
     this._channel = scope.channel
-    this._kvService = new KvClient(this.cluster.connStr, this.channel)
+    this._kvService = new KvServiceClient(this.cluster.connStr, this.channel)
+    this._metadata = scope.metadata
   }
 
   /**
@@ -143,6 +146,13 @@ export class Collection {
   /**
   @internal
   */
+  get metadata(): Metadata {
+    return this._metadata
+  }
+
+  /**
+  @internal
+  */
   get scope(): Scope {
     return this._scope
   }
@@ -163,19 +173,18 @@ export class Collection {
     callback: (
       err: Error | null,
       bytes: Buffer,
-      contentType: DocumentContentTypeMap[keyof DocumentContentTypeMap]
+      flags: number
     ) => void
   ): void {
     try {
       // BUG(JSCBC-1054): We should avoid doing buffer conversion.
       const [bytesBuf, flagsOut] = transcoder.encode(
-        value,
-        this.apiImplementation
+        value
       )
       callback(
         null,
         bytesBuf,
-        flagsOut as DocumentContentTypeMap[keyof DocumentContentTypeMap]
+        flagsOut
       )
     } catch (e) {
       return callback(e as Error, Buffer.alloc(0), 0)
@@ -188,14 +197,13 @@ export class Collection {
   _decodeDoc(
     transcoder: Transcoder,
     bytes: string | Uint8Array,
-    contentType: number,
+    flags: number,
     callback: (err: Error | null, content: any) => void
   ): void {
     try {
       const content = transcoder.decode(
         bytes,
-        contentType,
-        this.apiImplementation
+        flags
       )
       callback(null, content)
     } catch (e) {
@@ -268,6 +276,7 @@ export class Collection {
     return PromiseHelper.wrap((wrapCallback) => {
       this._kvService.get(
         req,
+        this.metadata,
         { deadline: deadline },
         (psErr: Error | null, resp: ExistsResponse) => {
           const err = errorFromProtostellar(psErr)
@@ -319,6 +328,7 @@ export class Collection {
     return PromiseHelper.wrap((wrapCallback) => {
       this._kvService.get(
         req,
+        this.metadata,
         { deadline: deadline },
         (psErr: Error | null, resp: GetResponse) => {
           const err = errorFromProtostellar(psErr)
@@ -329,7 +339,7 @@ export class Collection {
           this._decodeDoc(
             transcoder,
             resp.getContent(),
-            resp.getContentType(),
+            resp.getContentFlags(),
             (err, content) => {
               if (err) {
                 return wrapCallback(err, null)
@@ -446,9 +456,9 @@ export class Collection {
 
     const expiry = options.expiry
     const transcoder = options.transcoder || this.transcoder
-    const durabilityLevel = options.durabilityLevel
-    // const persistTo = options.durabilityPersistTo
-    // const replicateTo = options.durabilityReplicateTo
+    const durabilityLevel = toProtostellarDurabilityLevel(options.durabilityLevel)
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
     const deadline =
       Date.now() + (options.timeout || this._mutationTimeout(durabilityLevel))
     const req = new InsertRequest()
@@ -457,18 +467,25 @@ export class Collection {
     req.setScopeName(this._scope.name)
     req.setCollectionName(this.name)
     if (expiry) {
-      req.setExpiry(expiryToTimestamp(expiry))
+      req.setExpiryTime(expiryToTimestamp(expiry))
+    }
+    if(persistTo || replicateTo){
+      throw new FeatureNotAvailableError()
+    }
+    if(durabilityLevel){
+      req.setDurabilityLevel(durabilityLevel)
     }
 
     return PromiseHelper.wrap((wrapCallback) => {
-      this._encodeDoc(transcoder, value, (err, bytes, contentType) => {
+      this._encodeDoc(transcoder, value, (err, bytes, contentFlags) => {
         if (err) {
           return wrapCallback(err, null)
         }
         req.setContent(bytes)
-        req.setContentType(contentType)
+        req.setContentFlags(contentFlags)
         this._kvService.insert(
           req,
+          this.metadata,
           { deadline: deadline },
           (psErr: Error | null, resp: InsertResponse) => {
             const err = errorFromProtostellar(psErr)
@@ -514,9 +531,9 @@ export class Collection {
     const expiry = options.expiry
     const preserveExpiry = options.preserveExpiry
     const transcoder = options.transcoder || this.transcoder
-    const durabilityLevel = options.durabilityLevel
-    // const persistTo = options.durabilityPersistTo
-    // const replicateTo = options.durabilityReplicateTo
+    const durabilityLevel = toProtostellarDurabilityLevel(options.durabilityLevel)
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
     const deadline =
       Date.now() + (options.timeout || this._mutationTimeout(durabilityLevel))
 
@@ -532,21 +549,29 @@ export class Collection {
         )
       )
     }
-    if (expiry && !preserveExpiry) {
-      req.setExpiry(expiryToTimestamp(expiry))
+    if (expiry) {
+      req.setExpiryTime(expiryToTimestamp(expiry))
+    } else if (!(preserveExpiry || false)){
+      // match classic API -- reset expiry
+      req.setExpirySecs(0)
     }
-    // TODO:  handle preseverExpiry === false, cannot reset expiry a.t.m.
-    // default as of now is to preserve expiry
+    if(persistTo || replicateTo){
+      throw new FeatureNotAvailableError()
+    }
+    if(durabilityLevel){
+      req.setDurabilityLevel(durabilityLevel)
+    }
 
     return PromiseHelper.wrap((wrapCallback) => {
-      this._encodeDoc(transcoder, value, (err, bytes, contentType) => {
+      this._encodeDoc(transcoder, value, (err, bytes, contentFlags) => {
         if (err) {
           return wrapCallback(err, null)
         }
         req.setContent(bytes)
-        req.setContentType(contentType)
+        req.setContentFlags(contentFlags)
         this._kvService.upsert(
           req,
+          this.metadata,
           { deadline: deadline },
           (psErr: Error | null, resp: UpsertResponse) => {
             const err = errorFromProtostellar(psErr)
@@ -592,9 +617,9 @@ export class Collection {
     const cas = options.cas
     const preserveExpiry = options.preserveExpiry
     const transcoder = options.transcoder || this.transcoder
-    const durabilityLevel = options.durabilityLevel
-    // const persistTo = options.durabilityPersistTo
-    // const replicateTo = options.durabilityReplicateTo
+    const durabilityLevel = toProtostellarDurabilityLevel(options.durabilityLevel)
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
     const deadline =
       Date.now() + (options.timeout || this._mutationTimeout(durabilityLevel))
     const req = new ReplaceRequest()
@@ -609,14 +634,21 @@ export class Collection {
         )
       )
     }
-    if (expiry && !preserveExpiry) {
-      req.setExpiry(expiryToTimestamp(expiry))
+    if (expiry) {
+      req.setExpiryTime(expiryToTimestamp(expiry))
+    } else if (!(preserveExpiry || false)){
+      // match classic API -- reset expiry
+      req.setExpirySecs(0)
     }
-    // TODO:  handle preseverExpiry === false, cannot reset expiry a.t.m.
-    // default as of now is to preserve expiry
+    if(persistTo || replicateTo){
+      throw new FeatureNotAvailableError()
+    }
+    if(durabilityLevel){
+      req.setDurabilityLevel(durabilityLevel)
+    }
 
     return PromiseHelper.wrap((wrapCallback) => {
-      this._encodeDoc(transcoder, value, (err, bytes, contentType) => {
+      this._encodeDoc(transcoder, value, (err, bytes, contentFlags) => {
         if (err) {
           return wrapCallback(err, null)
         }
@@ -625,9 +657,10 @@ export class Collection {
           req.setCas(cas as number)
         }
         req.setContent(bytes)
-        req.setContentType(contentType)
+        req.setContentFlags(contentFlags)
         this._kvService.replace(
           req,
+          this.metadata,
           { deadline: deadline },
           (psErr: Error | null, resp: ReplaceResponse) => {
             const err = errorFromProtostellar(psErr)
@@ -668,9 +701,9 @@ export class Collection {
     }
 
     const cas = options.cas as number
-    const durabilityLevel = options.durabilityLevel
-    // const persistTo = options.durabilityPersistTo
-    // const replicateTo = options.durabilityReplicateTo
+    const durabilityLevel = toProtostellarDurabilityLevel(options.durabilityLevel)
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
     const deadline =
       Date.now() + (options.timeout || this._mutationTimeout(durabilityLevel))
     const req = new RemoveRequest()
@@ -681,6 +714,12 @@ export class Collection {
     if (cas) {
       req.setCas(cas)
     }
+    if(persistTo || replicateTo){
+      throw new FeatureNotAvailableError()
+    }
+    if(durabilityLevel){
+      req.setDurabilityLevel(durabilityLevel)
+    }
 
     return PromiseHelper.wrap((wrapCallback) => {
       if (cas) {
@@ -688,6 +727,7 @@ export class Collection {
       }
       this._kvService.remove(
         req,
+        this.metadata,
         { deadline: deadline },
         (psErr: Error | null, resp: RemoveResponse) => {
           const err = errorFromProtostellar(psErr)
@@ -737,11 +777,12 @@ export class Collection {
     req.setBucketName(this._scope.bucket.name)
     req.setScopeName(this._scope.name)
     req.setCollectionName(this.name)
-    req.setExpiry(expiryToTimestamp(expiry))
+    req.setExpiryTime(expiryToTimestamp(expiry))
 
     return PromiseHelper.wrap((wrapCallback) => {
       this._kvService.getAndTouch(
         req,
+        this.metadata,
         { deadline: deadline },
         (psErr: Error | null, resp: GetResponse) => {
           const err = errorFromProtostellar(psErr)
@@ -752,7 +793,7 @@ export class Collection {
           this._decodeDoc(
             transcoder,
             resp.getContent(),
-            resp.getContentType(),
+            resp.getContentFlags(),
             (err, content) => {
               if (err) {
                 return wrapCallback(err, null)
@@ -801,11 +842,12 @@ export class Collection {
     req.setBucketName(this._scope.bucket.name)
     req.setScopeName(this._scope.name)
     req.setCollectionName(this.name)
-    req.setExpiry(expiryToTimestamp(expiry))
+    req.setExpiryTime(expiryToTimestamp(expiry))
 
     return PromiseHelper.wrap((wrapCallback) => {
       this._kvService.touch(
         req,
+        this.metadata,
         { deadline: deadline },
         (psErr: Error | null, resp: TouchResponse) => {
           const err = errorFromProtostellar(psErr)
@@ -859,6 +901,7 @@ export class Collection {
     return PromiseHelper.wrap((wrapCallback) => {
       this._kvService.getAndLock(
         req,
+        this.metadata,
         { deadline: deadline },
         (psErr: Error | null, resp: GetResponse) => {
           const err = errorFromProtostellar(psErr)
@@ -869,7 +912,7 @@ export class Collection {
           this._decodeDoc(
             transcoder,
             resp.getContent(),
-            resp.getContentType(),
+            resp.getContentFlags(),
             (err, content) => {
               if (err) {
                 return wrapCallback(err, null)
@@ -924,6 +967,7 @@ export class Collection {
     return PromiseHelper.wrap((wrapCallback) => {
       this._kvService.unlock(
         req,
+        this.metadata,
         { deadline: deadline },
         (psErr: Error | null) => {
           const err = errorFromProtostellar(psErr)
@@ -972,6 +1016,7 @@ export class Collection {
     return PromiseHelper.wrap((wrapCallback) => {
       this._kvService.lookupIn(
         req,
+        this.metadata,
         { deadline: deadline },
         (psErr: Error | null, resp: LookupInResponse) => {
           const err = errorFromProtostellar(psErr)
@@ -1028,12 +1073,12 @@ export class Collection {
     // const storeSemantics = options.upsertDocument
     //   ? StoreSemantics.Upsert
     //   : options.storeSemantics
-    // const expiry = options.expiry
-    // const preserveExpiry = options.preserveExpiry
+    const expiry = options.expiry
+    const preserveExpiry = options.preserveExpiry
     const cas = options.cas as number
-    const durabilityLevel = options.durabilityLevel
-    // const persistTo = options.durabilityPersistTo
-    // const replicateTo = options.durabilityReplicateTo
+    const durabilityLevel = toProtostellarDurabilityLevel(options.durabilityLevel)
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
     const deadline =
       Date.now() + (options.timeout || this._mutationTimeout(durabilityLevel))
 
@@ -1046,10 +1091,40 @@ export class Collection {
     if(cas){
       req.setCas(cas)
     }
+    if(persistTo || replicateTo){
+      throw new FeatureNotAvailableError()
+    }
+    if(durabilityLevel){
+      req.setDurabilityLevel(durabilityLevel)
+    }
+
+    if(isMutateInOpInSpecList(MutateInRequest.Spec.Operation.OPERATION_INSERT, specList) && preserveExpiry){
+      throw new InvalidArgumentError(
+        new Error(
+          'Cannot set expiry and preserveExpiry options for insert operation.'
+        )
+      )
+    }
+
+    if(isMutateInOpInSpecList(MutateInRequest.Spec.Operation.OPERATION_REPLACE, specList) && preserveExpiry){
+      throw new InvalidArgumentError(
+        new Error(
+          'Cannot set expiry and preserveExpiry options for replace operation.'
+        )
+      )
+    }
+
+    if (expiry) {
+      req.setExpiryTime(expiryToTimestamp(expiry))
+    } else if (!(preserveExpiry || false)){
+      // match classic API -- reset expiry
+      req.setExpirySecs(0)
+    }
 
     return PromiseHelper.wrap((wrapCallback) => {
       this._kvService.mutateIn(
         req,
+        this.metadata,
         { deadline: deadline },
         (psErr: Error | null, resp: MutateInResponse) => {
           const err = errorFromProtostellar(psErr)
@@ -1106,9 +1181,9 @@ export class Collection {
 
     const initialValue = options.initial
     const expiry = options.expiry
-    const durabilityLevel = options.durabilityLevel
-    // const persistTo = options.durabilityPersistTo
-    // const replicateTo = options.durabilityReplicateTo
+    const durabilityLevel = toProtostellarDurabilityLevel(options.durabilityLevel)
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
     const deadline = Date.now() + (options.timeout || this._mutationTimeout(durabilityLevel))
 
     const req = new IncrementRequest()
@@ -1121,12 +1196,19 @@ export class Collection {
       req.setInitial(initialValue)
     }
     if (expiry) {
-      req.setExpiry(expiryToTimestamp(expiry))
+      req.setExpiryTime(expiryToTimestamp(expiry))
+    }
+    if(persistTo || replicateTo){
+      throw new FeatureNotAvailableError()
+    }
+    if(durabilityLevel){
+      req.setDurabilityLevel(durabilityLevel)
     }
 
     return PromiseHelper.wrap((wrapCallback) => {
       this._kvService.increment(
         req,
+        this.metadata,
         { deadline: deadline },
         (psErr: Error | null, resp: IncrementResponse) => {
           const err = errorFromProtostellar(psErr)
@@ -1165,9 +1247,9 @@ export class Collection {
 
     const initialValue = options.initial
     const expiry = options.expiry
-    const durabilityLevel = options.durabilityLevel
-    // const persistTo = options.durabilityPersistTo
-    // const replicateTo = options.durabilityReplicateTo
+    const durabilityLevel = toProtostellarDurabilityLevel(options.durabilityLevel)
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
     const deadline = Date.now() + (options.timeout || this._mutationTimeout(durabilityLevel))
 
     const req = new DecrementRequest()
@@ -1180,12 +1262,19 @@ export class Collection {
       req.setInitial(initialValue)
     }
     if (expiry) {
-      req.setExpiry(expiryToTimestamp(expiry))
+      req.setExpiryTime(expiryToTimestamp(expiry))
+    }
+    if(persistTo || replicateTo){
+      throw new FeatureNotAvailableError()
+    }
+    if(durabilityLevel){
+      req.setDurabilityLevel(durabilityLevel)
     }
 
     return PromiseHelper.wrap((wrapCallback) => {
       this._kvService.decrement(
         req,
+        this.metadata,
         { deadline: deadline },
         (psErr: Error | null, resp: DecrementResponse) => {
           const err = errorFromProtostellar(psErr)
@@ -1222,9 +1311,9 @@ export class Collection {
       options = {}
     }
 
-    const durabilityLevel = options.durabilityLevel
-    // const persistTo = options.durabilityPersistTo
-    // const replicateTo = options.durabilityReplicateTo
+    const durabilityLevel = toProtostellarDurabilityLevel(options.durabilityLevel)
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
     const deadline = Date.now() + (options.timeout || this._mutationTimeout(durabilityLevel))
 
     const req = new AppendRequest()
@@ -1236,10 +1325,17 @@ export class Collection {
       value = Buffer.from(value)
     }
     req.setContent(value)
+    if(persistTo || replicateTo){
+      throw new FeatureNotAvailableError()
+    }
+    if(durabilityLevel){
+      req.setDurabilityLevel(durabilityLevel)
+    }
 
     return PromiseHelper.wrap((wrapCallback) => {
       this._kvService.append(
         req,
+        this.metadata,
         { deadline: deadline },
         (psErr: Error | null, resp: AppendResponse) => {
           const err = errorFromProtostellar(psErr)
@@ -1275,9 +1371,9 @@ export class Collection {
       options = {}
     }
 
-    const durabilityLevel = options.durabilityLevel
-    // const persistTo = options.durabilityPersistTo
-    // const replicateTo = options.durabilityReplicateTo
+    const durabilityLevel = toProtostellarDurabilityLevel(options.durabilityLevel)
+    const persistTo = options.durabilityPersistTo
+    const replicateTo = options.durabilityReplicateTo
     const deadline = Date.now() + (options.timeout || this._mutationTimeout(durabilityLevel))
 
     const req = new PrependRequest()
@@ -1290,9 +1386,17 @@ export class Collection {
     }
     req.setContent(value)
 
+    if(persistTo || replicateTo){
+      throw new FeatureNotAvailableError()
+    }
+    if(durabilityLevel){
+      req.setDurabilityLevel(durabilityLevel)
+    }
+
     return PromiseHelper.wrap((wrapCallback) => {
       this._kvService.prepend(
         req,
+        this.metadata,
         { deadline: deadline },
         (psErr: Error | null, resp: PrependResponse) => {
           const err = errorFromProtostellar(psErr)

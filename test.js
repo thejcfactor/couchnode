@@ -4,17 +4,17 @@ const couchbase = require('./dist/couchbase')
 
 const main = async () => {
     //const connStr = 'couchbase://localhost'
-    const connStr = 'protostellar://192.168.1.237:18098'
+    const connStr = 'couchbase://localhost'
     const cluster = await couchbase.connect(connStr,
     {
       username: 'Administrator',
       password: 'password'
     })
     
-    const bucket = cluster.bucket('travel-sample')
-    const scope = bucket.defaultScope()
-    const collection = bucket.defaultCollection()
-    const inventoryScope = bucket.scope('inventory')
+    // const bucket = cluster.bucket('beer-sample')
+    // const scope = bucket.defaultScope()
+    // const collection = bucket.defaultCollection()
+    // const inventoryScope = bucket.scope('inventory')
     // const res = await collection.get('21st_amendment_brewery_cafe')
     // console.log(res)    
     // const mut = await collection.upsert('test-doc-1', {id:'test-doc-1', what:'Gee, I hope this works'})
@@ -27,19 +27,25 @@ const main = async () => {
     //   console.log(err)
     // }
 
-    let queryStr = 'SELECT * FROM `travel-sample`.`inventory`.`airline` LIMIT 2;'
-    let query_result = await cluster.query(queryStr)
-    query_result.rows.forEach((row) => {
-      console.log(row)
-    })
-    console.log(query_result.meta)
+    // let queryStr = 'SELECT * FROM `travel-sample`.`inventory`.`airline` LIMIT 2;'
+    // let query_result = await cluster.query(queryStr)
+    // query_result.rows.forEach((row) => {
+    //   console.log(row)
+    // })
+    // console.log(query_result.meta)
 
-    queryStr = 'SELECT * FROM `travel-sample`.`inventory`.`airline` LIMIT 2;'
-    query_result = await inventoryScope.query(queryStr)
-    query_result.rows.forEach((row) => {
-      console.log(row)
+    // queryStr = 'SELECT * FROM `travel-sample`.`inventory`.`airline` LIMIT 2;'
+    // query_result = await inventoryScope.query(queryStr)
+    // query_result.rows.forEach((row) => {
+    //   console.log(row)
+    // })
+    // console.log(query_result.meta)
+    const bm = cluster.buckets()
+    await bm.createBucket({
+      name: 'test-bucket',
+      ramQuotaMB: 256,
     })
-    console.log(query_result.meta)
+  
   }
   
 (async () => {

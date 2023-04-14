@@ -6,8 +6,8 @@ import {
   QueryWarning,
 } from '../querytypes'
 import { StreamableRowPromise } from '../streamablepromises'
-import { QueryClient } from './generated/couchbase/query.v1_grpc_pb'
-import { QueryRequest, QueryResponse } from './generated/couchbase/query.v1_pb'
+import { QueryServiceClient } from './generated/couchbase/query/v1/query_grpc_pb'
+import { QueryRequest, QueryResponse } from './generated/couchbase/query/v1/query_pb'
 import { queryStatusFromGrpc } from './querytypes'
 import { expiryToTimestamp } from '../utilities'
 // import { Scope } from './scope'
@@ -16,7 +16,7 @@ import { expiryToTimestamp } from '../utilities'
  * @internal
  */
 export class QueryExecutor {
-  private _queryService: QueryClient
+  private _queryService: QueryServiceClient
   private _bucketName?: string
   private _scopeName?: string
   private _queryTimeout: number
@@ -24,7 +24,7 @@ export class QueryExecutor {
   /**
    * @internal
    */
-  constructor(service: QueryClient, queryTimeout: number, bucketName?: string, scopeName?: string) {
+  constructor(service: QueryServiceClient, queryTimeout: number, bucketName?: string, scopeName?: string) {
     this._queryService = service
     this._queryTimeout = queryTimeout
     this._bucketName = bucketName

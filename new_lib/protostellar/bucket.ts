@@ -3,7 +3,7 @@ import { ApiImplementation } from '../generaltypes'
 import { Scope } from '../scope'
 import { Transcoder } from '../transcoders'
 import { Cluster } from './cluster'
-import { ChannelCredentials } from '@grpc/grpc-js'
+import { ChannelCredentials, Metadata } from '@grpc/grpc-js'
 
 /**
  * Exposes the operations which are available to be performed against a bucket.
@@ -16,6 +16,7 @@ export class Bucket {
   private _cluster: Cluster
   private _name: string
   private _channel: ChannelCredentials
+  private _metadata: Metadata
 
   /**
   @internal
@@ -24,6 +25,7 @@ export class Bucket {
     this._cluster = cluster
     this._name = bucketName
     this._channel = cluster.channel
+    this._metadata = cluster.metadata
   }
 
   /**
@@ -38,6 +40,13 @@ export class Bucket {
   */
   get cluster(): Cluster {
     return this._cluster
+  }
+
+  /**
+  @internal
+  */
+  get metadata(): Metadata {
+    return this._metadata
   }
 
   /**

@@ -3,12 +3,12 @@ import {
   // QueryProfileMode,
   QueryStatus,
 } from '../querytypes'
-import { QueryResponse } from './generated/couchbase/query.v1_pb'
+import { QueryResponse } from './generated/couchbase/query/v1/query_pb'
 
 /**
  * @internal
  */
-type MetaDataStatus = QueryResponse.MetaData.MetaDataStatusMap
+type MetaDataStatus = QueryResponse.MetaData.StatusMap
 
 /**
  * @internal
@@ -16,23 +16,23 @@ type MetaDataStatus = QueryResponse.MetaData.MetaDataStatusMap
 export function queryStatusFromGrpc(
   status: MetaDataStatus[keyof MetaDataStatus]
 ): QueryStatus {
-  if (status == QueryResponse.MetaData.MetaDataStatus.ABORTED) {
+  if (status == QueryResponse.MetaData.Status.STATUS_ABORTED) {
     return QueryStatus.Aborted
-  } else if (status == QueryResponse.MetaData.MetaDataStatus.CLOSED) {
+  } else if (status == QueryResponse.MetaData.Status.STATUS_CLOSED) {
     return QueryStatus.Closed
-  } else if (status == QueryResponse.MetaData.MetaDataStatus.COMPLETED) {
+  } else if (status == QueryResponse.MetaData.Status.STATUS_COMPLETED) {
     return QueryStatus.Completed
-  } else if (status == QueryResponse.MetaData.MetaDataStatus.ERRORS) {
+  } else if (status == QueryResponse.MetaData.Status.STATUS_ERRORS) {
     return QueryStatus.Errors
-  } else if (status == QueryResponse.MetaData.MetaDataStatus.FATAL) {
+  } else if (status == QueryResponse.MetaData.Status.STATUS_FATAL) {
     return QueryStatus.Fatal
-  } else if (status == QueryResponse.MetaData.MetaDataStatus.RUNNING) {
+  } else if (status == QueryResponse.MetaData.Status.STATUS_RUNNING) {
     return QueryStatus.Running
-  } else if (status == QueryResponse.MetaData.MetaDataStatus.STOPPED) {
+  } else if (status == QueryResponse.MetaData.Status.STATUS_STOPPED) {
     return QueryStatus.Stopped
-  } else if (status == QueryResponse.MetaData.MetaDataStatus.SUCCESS) {
+  } else if (status == QueryResponse.MetaData.Status.STATUS_SUCCESS) {
     return QueryStatus.Success
-  } else if (status == QueryResponse.MetaData.MetaDataStatus.TIMEOUT) {
+  } else if (status == QueryResponse.MetaData.Status.STATUS_TIMEOUT) {
     return QueryStatus.Timeout
   }
 

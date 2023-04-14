@@ -2,7 +2,7 @@ import { LookupInSpec, MutateInSpec, SubdocOpcode } from '../sdspecs'
 import {
   LookupInRequest,
   MutateInRequest,
-} from './generated/couchbase/kv.v1_pb'
+} from './generated/couchbase/kv/v1/kv_pb'
 
 /**
  * @internal
@@ -24,11 +24,11 @@ function toProtostellarLookupInOpCode(
     // case SubdocOpcode.GetDoc:
     //   return LookupInRequest.Spec.Operation.GET
     case SubdocOpcode.Get:
-      return LookupInRequest.Spec.Operation.GET
+      return LookupInRequest.Spec.Operation.OPERATION_GET
     case SubdocOpcode.Exists:
-      return LookupInRequest.Spec.Operation.EXISTS
+      return LookupInRequest.Spec.Operation.OPERATION_EXISTS
     case SubdocOpcode.GetCount:
-      return LookupInRequest.Spec.Operation.COUNT
+      return LookupInRequest.Spec.Operation.OPERATION_COUNT
     default:
       throw new Error('Invalid lookup-in op code.')
   }
@@ -46,23 +46,23 @@ function toProtostellarMutateInOpCode(
     // case SubdocOpcode.RemoveDoc:
     //   return binding.protocol_subdoc_opcode.remove_doc
     case SubdocOpcode.DictAdd:
-      return MutateInRequest.Spec.Operation.INSERT
+      return MutateInRequest.Spec.Operation.OPERATION_INSERT
     case SubdocOpcode.DictUpsert:
-      return MutateInRequest.Spec.Operation.UPSERT
+      return MutateInRequest.Spec.Operation.OPERATION_UPSERT
     case SubdocOpcode.Remove:
-      return MutateInRequest.Spec.Operation.REMOVE
+      return MutateInRequest.Spec.Operation.OPERATION_REMOVE
     case SubdocOpcode.Replace:
-      return MutateInRequest.Spec.Operation.REPLACE
+      return MutateInRequest.Spec.Operation.OPERATION_REPLACE
     case SubdocOpcode.ArrayPushLast:
-      return MutateInRequest.Spec.Operation.ARRAY_APPEND
+      return MutateInRequest.Spec.Operation.OPERATION_ARRAY_APPEND
     case SubdocOpcode.ArrayPushFirst:
-      return MutateInRequest.Spec.Operation.ARRAY_PREPEND
+      return MutateInRequest.Spec.Operation.OPERATION_ARRAY_PREPEND
     case SubdocOpcode.ArrayInsert:
-      return MutateInRequest.Spec.Operation.ARRAY_INSERT
+      return MutateInRequest.Spec.Operation.OPERATION_ARRAY_INSERT
     case SubdocOpcode.ArrayAddUnique:
-      return MutateInRequest.Spec.Operation.ARRAY_ADD_UNIQUE
+      return MutateInRequest.Spec.Operation.OPERATION_ARRAY_ADD_UNIQUE
     case SubdocOpcode.Counter:
-      return MutateInRequest.Spec.Operation.COUNTER
+      return MutateInRequest.Spec.Operation.OPERATION_COUNTER
     // case SubdocOpcode.ReplaceBodyWithXattr:
     //   return binding.protocol_subdoc_opcode.replace_body_with_xattr
     default:
@@ -129,4 +129,14 @@ export function toProtostellarMutateInSpecs(
   }
 
   return psSpecs
+}
+
+/**
+ * @internal
+ */
+export function isMutateInOpInSpecList(
+  spec: MutateInOpCode[keyof MutateInOpCode],
+  specList: MutateInRequest.Spec[]
+): boolean {
+  return specList.findIndex((s) => s.getOperation() === spec ) >= 0
 }

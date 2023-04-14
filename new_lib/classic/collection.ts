@@ -57,6 +57,7 @@ import binding, {
   CppPrependResponse,
   CppIncrementResponse,
   CppDecrementResponse,
+  CppCas,
 } from './binding'
 import {
   durabilityToCpp,
@@ -1241,7 +1242,7 @@ export class Collection {
       : options.storeSemantics
     const expiry = options.expiry
     const preserveExpiry = options.preserveExpiry
-    const cas = options.cas
+    const cas = options.cas as CppCas
     const durabilityLevel = options.durabilityLevel
     const persistTo = options.durabilityPersistTo
     const replicateTo = options.durabilityReplicateTo

@@ -4,6 +4,7 @@ import {
   // CertificateAuthenticator,
 } from './authenticators'
 import { Bucket } from './bucket'
+import { BucketManager } from './bucketmanager'
 import { Cluster as ClassicCluster } from './classic/cluster'
 import { ApiImplementation } from './generaltypes'
 import { Cluster as ProtostellarCluster } from './protostellar/cluster'
@@ -215,6 +216,14 @@ export class Cluster {
    */
   bucket(bucketName: string): Bucket {
     return this._impl.bucket(bucketName)
+  }
+
+  /**
+   * Returns a BucketManager which can be used to manage the buckets
+   * of this cluster.
+   */
+  buckets(): BucketManager {
+    return new BucketManager(this._impl)
   }
 
   /**

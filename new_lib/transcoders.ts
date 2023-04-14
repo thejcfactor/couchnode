@@ -1,9 +1,3 @@
-import { ApiImplementation } from './generaltypes'
-import {
-  DocumentContentType,
-  DocumentContentTypeMap,
-} from './protostellar/generated/couchbase/kv.v1_pb'
-
 const NF_JSON = 0x00
 const NF_RAW = 0x02
 const NF_UTF8 = 0x04
@@ -31,9 +25,8 @@ export interface Transcoder {
    * @param value The value to encode.
    */
   encode(
-    value: any,
-    apiImplementation?: ApiImplementation
-  ): [Buffer, number | DocumentContentTypeMap[keyof DocumentContentTypeMap]]
+    value: any
+  ): [Buffer, number]
 
   /**
    * Decodes a buffer and flags tuple back to the original type of the
@@ -41,12 +34,10 @@ export interface Transcoder {
    *
    * @param bytes The bytes that were previously encoded.
    * @param flags The flags associated with the data.
-   * @param apiImplementation The API implementation to follow.
    */
   decode(
     bytes: Buffer | string | Uint8Array,
-    flags: number,
-    apiImplementation?: ApiImplementation
+    flags: number
   ): any
 }
 
@@ -64,40 +55,22 @@ export class DefaultTranscoder implements Transcoder {
    * stored to the server and later used for decoding.
    *
    * @param value The value to encode.
-   * @param apiImplementation The API implementation to follow.
    */
   encode(
-    value: any,
-    apiImplementation?: ApiImplementation
-  ): [Buffer, number | DocumentContentTypeMap[keyof DocumentContentTypeMap]] {
-    if (!apiImplementation) {
-      // If its a buffer, write that directly as raw.
-      if (Buffer.isBuffer(value)) {
-        return [value, CF_RAW | NF_RAW]
-      }
-
-      // If its a string, encode it as a UTF8 string.
-      if (typeof value === 'string') {
-        return [Buffer.from(value), CF_UTF8 | NF_UTF8]
-      }
-
-      // Encode it to JSON and save that otherwise.
-      return [Buffer.from(JSON.stringify(value)), CF_JSON | NF_JSON]
-    } else {
-      // If its a buffer, write that directly as raw.
-      if (Buffer.isBuffer(value)) {
-        return [value, DocumentContentType.BINARY]
-      }
-
-      // TODO:  handle string?
-      // If its a string, encode it as a UTF8 string.
-      // if (typeof value === 'string') {
-      //   return [Buffer.from(value), CF_UTF8 | NF_UTF8]
-      // }
-
-      // Encode it to JSON and save that otherwise.
-      return [Buffer.from(JSON.stringify(value)), DocumentContentType.JSON]
+    value: any
+  ): [Buffer, number] {
+    // If its a buffer, write that directly as raw.
+    if (Buffer.isBuffer(value)) {
+      return [value, CF_RAW | NF_RAW]
     }
+
+    // If its a string, encode it as a UTF8 string.
+    if (typeof value === 'string') {
+      return [Buffer.from(value), CF_UTF8 | NF_UTF8]
+    }
+
+    // Encode it to JSON and save that otherwise.
+    return [Buffer.from(JSON.stringify(value)), CF_JSON | NF_JSON]
   }
 
   /**
@@ -106,60 +79,47 @@ export class DefaultTranscoder implements Transcoder {
    *
    * @param bytes The bytes that were previously encoded.
    * @param flags The flags associated with the data.
-   * @param apiImplementation The API implementation to follow.
    */
   decode(
     bytes: Buffer | string | Uint8Array,
-    flags: number,
-    apiImplementation?: ApiImplementation
+    flags: number
   ): any {
-    if (!apiImplementation) {
-      let format = flags & NF_MASK
-      const cfformat = flags & CF_MASK
+    let format = flags & NF_MASK
+    const cfformat = flags & CF_MASK
 
-      if (cfformat !== CF_NONE) {
-        if (cfformat === CF_JSON) {
-          format = NF_JSON
-        } else if (cfformat === CF_RAW) {
-          format = NF_RAW
-        } else if (cfformat === CF_UTF8) {
-          format = NF_UTF8
-        } else if (cfformat !== CF_PRIVATE) {
-          // Unknown CF Format!  The following will force
-          //   fallback to reporting RAW data.
-          format = NF_UNKNOWN
-        }
+    if (cfformat !== CF_NONE) {
+      if (cfformat === CF_JSON) {
+        format = NF_JSON
+      } else if (cfformat === CF_RAW) {
+        format = NF_RAW
+      } else if (cfformat === CF_UTF8) {
+        format = NF_UTF8
+      } else if (cfformat !== CF_PRIVATE) {
+        // Unknown CF Format!  The following will force
+        //   fallback to reporting RAW data.
+        format = NF_UNKNOWN
       }
-
-      if (format === NF_UTF8) {
-        return bytes.toString('utf8')
-      } else if (format === NF_RAW) {
-        return bytes
-      } else if (format === NF_JSON) {
-        try {
-          return JSON.parse(bytes.toString('utf8'))
-        } catch (e) {
-          // If we encounter a parse error, assume that we need
-          // to return bytes instead of an object.
-          return bytes
-        }
-      }
-
-      // Default to returning a Buffer if all else fails.
-      return bytes
-    } else {
-      if (flags == DocumentContentType.JSON) {
-        try {
-          return JSON.parse(Buffer.from(bytes).toString('utf8'))
-        } catch (e) {
-          // If we encounter a parse error, assume that we need
-          // to return bytes instead of an object.
-          return Buffer.from(bytes)
-        }
-      }
-
-      // Default to returning a Buffer if all else fails.
-      return Buffer.from(bytes)
     }
+
+    if(bytes instanceof Uint8Array){
+      bytes = Buffer.from(bytes)
+    }
+
+    if (format === NF_UTF8) {
+      return bytes.toString('utf8')
+    } else if (format === NF_RAW) {
+      return bytes
+    } else if (format === NF_JSON) {
+      try {
+        return JSON.parse(bytes.toString('utf8'))
+      } catch (e) {
+        // If we encounter a parse error, assume that we need
+        // to return bytes instead of an object.
+        return bytes
+      }
+    }
+
+    // Default to returning a Buffer if all else fails.
+    return bytes
   }
 }

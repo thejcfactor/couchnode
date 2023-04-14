@@ -58,6 +58,30 @@ export function durabilityToCpp(
 /**
  * @internal
  */
+export function durabilityLevelFromCpp(
+  level: CppDurabilityLevel | undefined
+): DurabilityLevel {
+  // Unspecified is allowed, and means no sync durability.
+  if (level === null || level === undefined) {
+    return DurabilityLevel.None
+  }
+
+  if (level === binding.durability_level.none) {
+    return DurabilityLevel.None
+  } else if (level === binding.durability_level.majority) {
+    return DurabilityLevel.Majority
+  } else if (level === binding.durability_level.majority_and_persist_to_active) {
+    return DurabilityLevel.MajorityAndPersistOnMaster
+  } else if (level === binding.durability_level.persist_to_majority) {
+    return DurabilityLevel.PersistToMajority
+  }
+
+  throw new errs.InvalidDurabilityLevel()
+}
+
+/**
+ * @internal
+ */
 export function persistToToCpp(persistTo: number | undefined): CppPersistTo {
   // Unspecified is allowed, and means no persistTo.
   if (persistTo === null || persistTo === undefined) {

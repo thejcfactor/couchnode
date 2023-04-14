@@ -1,4 +1,4 @@
-import { MutationToken as GrpcMutationToken } from './generated/couchbase/kv.v1_pb'
+import { MutationToken as GrpcMutationToken } from './generated/couchbase/kv/v1/kv_pb'
 
 /**
  * Represents the mutation token returned by the server.
