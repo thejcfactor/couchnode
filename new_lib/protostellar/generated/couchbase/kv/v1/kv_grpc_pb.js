@@ -72,6 +72,28 @@ function deserialize_couchbase_kv_v1_ExistsResponse(buffer_arg) {
   return couchbase_kv_v1_kv_pb.ExistsResponse.deserializeBinary(new Uint8Array(buffer_arg));
 }
 
+function serialize_couchbase_kv_v1_GetAllReplicasRequest(arg) {
+  if (!(arg instanceof couchbase_kv_v1_kv_pb.GetAllReplicasRequest)) {
+    throw new Error('Expected argument of type couchbase.kv.v1.GetAllReplicasRequest');
+  }
+  return Buffer.from(arg.serializeBinary());
+}
+
+function deserialize_couchbase_kv_v1_GetAllReplicasRequest(buffer_arg) {
+  return couchbase_kv_v1_kv_pb.GetAllReplicasRequest.deserializeBinary(new Uint8Array(buffer_arg));
+}
+
+function serialize_couchbase_kv_v1_GetAllReplicasResponse(arg) {
+  if (!(arg instanceof couchbase_kv_v1_kv_pb.GetAllReplicasResponse)) {
+    throw new Error('Expected argument of type couchbase.kv.v1.GetAllReplicasResponse');
+  }
+  return Buffer.from(arg.serializeBinary());
+}
+
+function deserialize_couchbase_kv_v1_GetAllReplicasResponse(buffer_arg) {
+  return couchbase_kv_v1_kv_pb.GetAllReplicasResponse.deserializeBinary(new Uint8Array(buffer_arg));
+}
+
 function serialize_couchbase_kv_v1_GetAndLockRequest(arg) {
   if (!(arg instanceof couchbase_kv_v1_kv_pb.GetAndLockRequest)) {
     throw new Error('Expected argument of type couchbase.kv.v1.GetAndLockRequest');
@@ -114,28 +136,6 @@ function serialize_couchbase_kv_v1_GetAndTouchResponse(arg) {
 
 function deserialize_couchbase_kv_v1_GetAndTouchResponse(buffer_arg) {
   return couchbase_kv_v1_kv_pb.GetAndTouchResponse.deserializeBinary(new Uint8Array(buffer_arg));
-}
-
-function serialize_couchbase_kv_v1_GetReplicaRequest(arg) {
-  if (!(arg instanceof couchbase_kv_v1_kv_pb.GetReplicaRequest)) {
-    throw new Error('Expected argument of type couchbase.kv.v1.GetReplicaRequest');
-  }
-  return Buffer.from(arg.serializeBinary());
-}
-
-function deserialize_couchbase_kv_v1_GetReplicaRequest(buffer_arg) {
-  return couchbase_kv_v1_kv_pb.GetReplicaRequest.deserializeBinary(new Uint8Array(buffer_arg));
-}
-
-function serialize_couchbase_kv_v1_GetReplicaResponse(arg) {
-  if (!(arg instanceof couchbase_kv_v1_kv_pb.GetReplicaResponse)) {
-    throw new Error('Expected argument of type couchbase.kv.v1.GetReplicaResponse');
-  }
-  return Buffer.from(arg.serializeBinary());
-}
-
-function deserialize_couchbase_kv_v1_GetReplicaResponse(buffer_arg) {
-  return couchbase_kv_v1_kv_pb.GetReplicaResponse.deserializeBinary(new Uint8Array(buffer_arg));
 }
 
 function serialize_couchbase_kv_v1_GetRequest(arg) {
@@ -448,17 +448,6 @@ var KvServiceService = exports.KvServiceService = {
     responseSerialize: serialize_couchbase_kv_v1_UnlockResponse,
     responseDeserialize: deserialize_couchbase_kv_v1_UnlockResponse,
   },
-  getReplica: {
-    path: '/couchbase.kv.v1.KvService/GetReplica',
-    requestStream: false,
-    responseStream: false,
-    requestType: couchbase_kv_v1_kv_pb.GetReplicaRequest,
-    responseType: couchbase_kv_v1_kv_pb.GetReplicaResponse,
-    requestSerialize: serialize_couchbase_kv_v1_GetReplicaRequest,
-    requestDeserialize: deserialize_couchbase_kv_v1_GetReplicaRequest,
-    responseSerialize: serialize_couchbase_kv_v1_GetReplicaResponse,
-    responseDeserialize: deserialize_couchbase_kv_v1_GetReplicaResponse,
-  },
   touch: {
     path: '/couchbase.kv.v1.KvService/Touch',
     requestStream: false,
@@ -590,6 +579,17 @@ var KvServiceService = exports.KvServiceService = {
     requestDeserialize: deserialize_couchbase_kv_v1_MutateInRequest,
     responseSerialize: serialize_couchbase_kv_v1_MutateInResponse,
     responseDeserialize: deserialize_couchbase_kv_v1_MutateInResponse,
+  },
+  getAllReplicas: {
+    path: '/couchbase.kv.v1.KvService/GetAllReplicas',
+    requestStream: false,
+    responseStream: true,
+    requestType: couchbase_kv_v1_kv_pb.GetAllReplicasRequest,
+    responseType: couchbase_kv_v1_kv_pb.GetAllReplicasResponse,
+    requestSerialize: serialize_couchbase_kv_v1_GetAllReplicasRequest,
+    requestDeserialize: deserialize_couchbase_kv_v1_GetAllReplicasRequest,
+    responseSerialize: serialize_couchbase_kv_v1_GetAllReplicasResponse,
+    responseDeserialize: deserialize_couchbase_kv_v1_GetAllReplicasResponse,
   },
   rangeScan: {
     path: '/couchbase.kv.v1.KvService/RangeScan',

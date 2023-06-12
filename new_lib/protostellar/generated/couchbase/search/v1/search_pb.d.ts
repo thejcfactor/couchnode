@@ -1355,6 +1355,16 @@ export class SearchQueryRequest extends jspb.Message {
 
   getFacetsMap(): jspb.Map<string, Facet>;
   clearFacetsMap(): void;
+  hasBucketName(): boolean;
+  clearBucketName(): void;
+  getBucketName(): string;
+  setBucketName(value: string): void;
+
+  hasScopeName(): boolean;
+  clearScopeName(): void;
+  getScopeName(): string;
+  setScopeName(value: string): void;
+
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): SearchQueryRequest.AsObject;
   static toObject(includeInstance: boolean, msg: SearchQueryRequest): SearchQueryRequest.AsObject;
@@ -1381,6 +1391,8 @@ export namespace SearchQueryRequest {
     collectionsList: Array<string>,
     includeLocations: boolean,
     facetsMap: Array<[string, Facet.AsObject]>,
+    bucketName: string,
+    scopeName: string,
   }
 
   export interface ScanConsistencyMap {
@@ -1609,9 +1621,6 @@ export namespace SearchQueryResponse {
   }
 
   export class TermFacetResult extends jspb.Message {
-    getName(): string;
-    setName(value: string): void;
-
     getField(): string;
     setField(value: string): void;
 
@@ -1641,7 +1650,6 @@ export namespace SearchQueryResponse {
 
   export namespace TermFacetResult {
     export type AsObject = {
-      name: string,
       field: string,
       total: number,
       missing: number,
@@ -1687,9 +1695,6 @@ export namespace SearchQueryResponse {
   }
 
   export class DateRangeFacetResult extends jspb.Message {
-    getName(): string;
-    setName(value: string): void;
-
     getField(): string;
     setField(value: string): void;
 
@@ -1719,7 +1724,6 @@ export namespace SearchQueryResponse {
 
   export namespace DateRangeFacetResult {
     export type AsObject = {
-      name: string,
       field: string,
       total: number,
       missing: number,
@@ -1761,9 +1765,6 @@ export namespace SearchQueryResponse {
   }
 
   export class NumericRangeFacetResult extends jspb.Message {
-    getName(): string;
-    setName(value: string): void;
-
     getField(): string;
     setField(value: string): void;
 
@@ -1793,7 +1794,6 @@ export namespace SearchQueryResponse {
 
   export namespace NumericRangeFacetResult {
     export type AsObject = {
-      name: string,
       field: string,
       total: number,
       missing: number,

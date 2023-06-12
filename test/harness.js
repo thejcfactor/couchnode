@@ -6,6 +6,9 @@ const semver = require('semver')
 const couchbase = require('../new_lib/couchbase')
 const jcbmock = require('./jcbmock')
 
+const path = require('path')
+const ROOT = path.resolve(__dirname, '..')
+
 try {
   const SegfaultHandler = require('segfault-handler')
   SegfaultHandler.registerHandler()
@@ -74,6 +77,7 @@ var TEST_CONFIG = {
   user: undefined,
   pass: undefined,
   features: [],
+  trustStore: path.join(ROOT, 'ca.pem')
 }
 
 if (process.env.CNCSTR !== undefined) {
@@ -117,6 +121,9 @@ if (process.env.CNFEAT !== undefined) {
     })
   })
 }
+if (process.env.CBTRUSTSTORE !== undefined) {
+  TEST_CONFIG.trustStore = process.env.CBTRUSTSTORE
+}
 
 class Harness {
   get Features() {
@@ -130,6 +137,7 @@ class Harness {
     this._coll = TEST_CONFIG.coll
     this._user = TEST_CONFIG.user
     this._pass = TEST_CONFIG.pass
+    this._trustStore = this._connstr && this._connstr.includes('protostellar') ? TEST_CONFIG.trustStore : undefined
     this._usingMock = false
 
     if (!this._connstr) {
@@ -196,6 +204,24 @@ class Harness {
     }, ...assertArgs)
   }
 
+  async tryNumTimesUntilErr(fn, numTimes, delay) {
+    var assertArgs = Array.from(arguments).slice(3)
+    // Ensure the key is gone
+    await this.throwsHelper(async () => {
+      let num = 0
+      /* eslint-disable-next-line no-constant-condition */
+      while(true){
+        await fn()
+        if(num < numTimes){
+          num++
+          await this.sleep(delay)
+        } else {
+          throw new Error(`No error raised after ${numTimes} sleeping ${delay} between each try.`)
+        }
+      }
+    }, ...assertArgs)
+  }
+
   genTestKey() {
     return this._testKey + '_' + this._testCtr++
   }
@@ -255,7 +281,8 @@ class Harness {
       }
     }
 
-    var cluster = await this.newCluster()
+    var opts = this._trustStore !== undefined ? {security:{trustStorePath: this._trustStore}} : {}
+    var cluster = await this.newCluster(opts)
     var bucket = cluster.bucket(this._bucket)
     var scope = bucket.defaultScope()
     var coll = bucket.collection(this._coll)

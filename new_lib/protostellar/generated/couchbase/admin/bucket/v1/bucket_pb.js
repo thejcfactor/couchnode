@@ -483,7 +483,7 @@ proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket.toObject = function(i
   var f, obj = {
     bucketName: jspb.Message.getFieldWithDefault(msg, 1, ""),
     flushEnabled: jspb.Message.getBooleanFieldWithDefault(msg, 2, false),
-    ramQuotaBytes: jspb.Message.getFieldWithDefault(msg, 3, 0),
+    ramQuotaMb: jspb.Message.getFieldWithDefault(msg, 3, 0),
     numReplicas: jspb.Message.getFieldWithDefault(msg, 4, 0),
     replicaIndexes: jspb.Message.getBooleanFieldWithDefault(msg, 5, false),
     bucketType: jspb.Message.getFieldWithDefault(msg, 6, 0),
@@ -539,7 +539,7 @@ proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket.deserializeBinaryFrom
       break;
     case 3:
       var value = /** @type {number} */ (reader.readUint64());
-      msg.setRamQuotaBytes(value);
+      msg.setRamQuotaMb(value);
       break;
     case 4:
       var value = /** @type {number} */ (reader.readUint32());
@@ -620,7 +620,7 @@ proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket.serializeBinaryToWrit
       f
     );
   }
-  f = message.getRamQuotaBytes();
+  f = message.getRamQuotaMb();
   if (f !== 0) {
     writer.writeUint64(
       3,
@@ -669,8 +669,8 @@ proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket.serializeBinaryToWrit
       f
     );
   }
-  f = message.getMinimumDurabilityLevel();
-  if (f !== 0.0) {
+  f = /** @type {!proto.couchbase.kv.v1.DurabilityLevel} */ (jspb.Message.getField(message, 10));
+  if (f != null) {
     writer.writeEnum(
       10,
       f
@@ -730,10 +730,10 @@ proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket.prototype.setFlushEna
 
 
 /**
- * optional uint64 ram_quota_bytes = 3;
+ * optional uint64 ram_quota_mb = 3;
  * @return {number}
  */
-proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket.prototype.getRamQuotaBytes = function() {
+proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket.prototype.getRamQuotaMb = function() {
   return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 3, 0));
 };
 
@@ -742,7 +742,7 @@ proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket.prototype.getRamQuota
  * @param {number} value
  * @return {!proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket} returns this
  */
-proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket.prototype.setRamQuotaBytes = function(value) {
+proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket.prototype.setRamQuotaMb = function(value) {
   return jspb.Message.setProto3IntField(this, 3, value);
 };
 
@@ -869,7 +869,25 @@ proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket.prototype.getMinimumD
  * @return {!proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket} returns this
  */
 proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket.prototype.setMinimumDurabilityLevel = function(value) {
-  return jspb.Message.setProto3EnumField(this, 10, value);
+  return jspb.Message.setField(this, 10, value);
+};
+
+
+/**
+ * Clears the field making it undefined.
+ * @return {!proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket} returns this
+ */
+proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket.prototype.clearMinimumDurabilityLevel = function() {
+  return jspb.Message.setField(this, 10, undefined);
+};
+
+
+/**
+ * Returns whether this field is set.
+ * @return {boolean}
+ */
+proto.couchbase.admin.bucket.v1.ListBucketsResponse.Bucket.prototype.hasMinimumDurabilityLevel = function() {
+  return jspb.Message.getField(this, 10) != null;
 };
 
 
@@ -981,7 +999,7 @@ proto.couchbase.admin.bucket.v1.CreateBucketRequest.toObject = function(includeI
   var f, obj = {
     bucketName: jspb.Message.getFieldWithDefault(msg, 1, ""),
     bucketType: jspb.Message.getFieldWithDefault(msg, 2, 0),
-    ramQuotaBytes: jspb.Message.getFieldWithDefault(msg, 3, 0),
+    ramQuotaMb: jspb.Message.getFieldWithDefault(msg, 3, 0),
     numReplicas: jspb.Message.getFieldWithDefault(msg, 4, 0),
     flushEnabled: jspb.Message.getBooleanFieldWithDefault(msg, 5, false),
     replicaIndexes: jspb.Message.getBooleanFieldWithDefault(msg, 6, false),
@@ -1037,7 +1055,7 @@ proto.couchbase.admin.bucket.v1.CreateBucketRequest.deserializeBinaryFromReader 
       break;
     case 3:
       var value = /** @type {number} */ (reader.readUint64());
-      msg.setRamQuotaBytes(value);
+      msg.setRamQuotaMb(value);
       break;
     case 4:
       var value = /** @type {number} */ (reader.readUint32());
@@ -1118,15 +1136,15 @@ proto.couchbase.admin.bucket.v1.CreateBucketRequest.serializeBinaryToWriter = fu
       f
     );
   }
-  f = message.getRamQuotaBytes();
-  if (f !== 0) {
+  f = /** @type {number} */ (jspb.Message.getField(message, 3));
+  if (f != null) {
     writer.writeUint64(
       3,
       f
     );
   }
-  f = message.getNumReplicas();
-  if (f !== 0) {
+  f = /** @type {number} */ (jspb.Message.getField(message, 4));
+  if (f != null) {
     writer.writeUint32(
       4,
       f
@@ -1228,10 +1246,10 @@ proto.couchbase.admin.bucket.v1.CreateBucketRequest.prototype.setBucketType = fu
 
 
 /**
- * optional uint64 ram_quota_bytes = 3;
+ * optional uint64 ram_quota_mb = 3;
  * @return {number}
  */
-proto.couchbase.admin.bucket.v1.CreateBucketRequest.prototype.getRamQuotaBytes = function() {
+proto.couchbase.admin.bucket.v1.CreateBucketRequest.prototype.getRamQuotaMb = function() {
   return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 3, 0));
 };
 
@@ -1240,8 +1258,26 @@ proto.couchbase.admin.bucket.v1.CreateBucketRequest.prototype.getRamQuotaBytes =
  * @param {number} value
  * @return {!proto.couchbase.admin.bucket.v1.CreateBucketRequest} returns this
  */
-proto.couchbase.admin.bucket.v1.CreateBucketRequest.prototype.setRamQuotaBytes = function(value) {
-  return jspb.Message.setProto3IntField(this, 3, value);
+proto.couchbase.admin.bucket.v1.CreateBucketRequest.prototype.setRamQuotaMb = function(value) {
+  return jspb.Message.setField(this, 3, value);
+};
+
+
+/**
+ * Clears the field making it undefined.
+ * @return {!proto.couchbase.admin.bucket.v1.CreateBucketRequest} returns this
+ */
+proto.couchbase.admin.bucket.v1.CreateBucketRequest.prototype.clearRamQuotaMb = function() {
+  return jspb.Message.setField(this, 3, undefined);
+};
+
+
+/**
+ * Returns whether this field is set.
+ * @return {boolean}
+ */
+proto.couchbase.admin.bucket.v1.CreateBucketRequest.prototype.hasRamQuotaMb = function() {
+  return jspb.Message.getField(this, 3) != null;
 };
 
 
@@ -1259,7 +1295,25 @@ proto.couchbase.admin.bucket.v1.CreateBucketRequest.prototype.getNumReplicas = f
  * @return {!proto.couchbase.admin.bucket.v1.CreateBucketRequest} returns this
  */
 proto.couchbase.admin.bucket.v1.CreateBucketRequest.prototype.setNumReplicas = function(value) {
-  return jspb.Message.setProto3IntField(this, 4, value);
+  return jspb.Message.setField(this, 4, value);
+};
+
+
+/**
+ * Clears the field making it undefined.
+ * @return {!proto.couchbase.admin.bucket.v1.CreateBucketRequest} returns this
+ */
+proto.couchbase.admin.bucket.v1.CreateBucketRequest.prototype.clearNumReplicas = function() {
+  return jspb.Message.setField(this, 4, undefined);
+};
+
+
+/**
+ * Returns whether this field is set.
+ * @return {boolean}
+ */
+proto.couchbase.admin.bucket.v1.CreateBucketRequest.prototype.hasNumReplicas = function() {
+  return jspb.Message.getField(this, 4) != null;
 };
 
 
@@ -1714,7 +1768,7 @@ proto.couchbase.admin.bucket.v1.UpdateBucketRequest.prototype.toObject = functio
 proto.couchbase.admin.bucket.v1.UpdateBucketRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
     bucketName: jspb.Message.getFieldWithDefault(msg, 1, ""),
-    ramQuotaBytes: jspb.Message.getFieldWithDefault(msg, 3, 0),
+    ramQuotaMb: jspb.Message.getFieldWithDefault(msg, 3, 0),
     numReplicas: jspb.Message.getFieldWithDefault(msg, 4, 0),
     flushEnabled: jspb.Message.getBooleanFieldWithDefault(msg, 5, false),
     replicaIndexes: jspb.Message.getBooleanFieldWithDefault(msg, 6, false),
@@ -1765,7 +1819,7 @@ proto.couchbase.admin.bucket.v1.UpdateBucketRequest.deserializeBinaryFromReader 
       break;
     case 3:
       var value = /** @type {number} */ (reader.readUint64());
-      msg.setRamQuotaBytes(value);
+      msg.setRamQuotaMb(value);
       break;
     case 4:
       var value = /** @type {number} */ (reader.readUint32());
@@ -1920,10 +1974,10 @@ proto.couchbase.admin.bucket.v1.UpdateBucketRequest.prototype.setBucketName = fu
 
 
 /**
- * optional uint64 ram_quota_bytes = 3;
+ * optional uint64 ram_quota_mb = 3;
  * @return {number}
  */
-proto.couchbase.admin.bucket.v1.UpdateBucketRequest.prototype.getRamQuotaBytes = function() {
+proto.couchbase.admin.bucket.v1.UpdateBucketRequest.prototype.getRamQuotaMb = function() {
   return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 3, 0));
 };
 
@@ -1932,7 +1986,7 @@ proto.couchbase.admin.bucket.v1.UpdateBucketRequest.prototype.getRamQuotaBytes =
  * @param {number} value
  * @return {!proto.couchbase.admin.bucket.v1.UpdateBucketRequest} returns this
  */
-proto.couchbase.admin.bucket.v1.UpdateBucketRequest.prototype.setRamQuotaBytes = function(value) {
+proto.couchbase.admin.bucket.v1.UpdateBucketRequest.prototype.setRamQuotaMb = function(value) {
   return jspb.Message.setField(this, 3, value);
 };
 
@@ -1941,7 +1995,7 @@ proto.couchbase.admin.bucket.v1.UpdateBucketRequest.prototype.setRamQuotaBytes =
  * Clears the field making it undefined.
  * @return {!proto.couchbase.admin.bucket.v1.UpdateBucketRequest} returns this
  */
-proto.couchbase.admin.bucket.v1.UpdateBucketRequest.prototype.clearRamQuotaBytes = function() {
+proto.couchbase.admin.bucket.v1.UpdateBucketRequest.prototype.clearRamQuotaMb = function() {
   return jspb.Message.setField(this, 3, undefined);
 };
 
@@ -1950,7 +2004,7 @@ proto.couchbase.admin.bucket.v1.UpdateBucketRequest.prototype.clearRamQuotaBytes
  * Returns whether this field is set.
  * @return {boolean}
  */
-proto.couchbase.admin.bucket.v1.UpdateBucketRequest.prototype.hasRamQuotaBytes = function() {
+proto.couchbase.admin.bucket.v1.UpdateBucketRequest.prototype.hasRamQuotaMb = function() {
   return jspb.Message.getField(this, 3) != null;
 };
 

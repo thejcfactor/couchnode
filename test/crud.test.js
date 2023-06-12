@@ -1,7 +1,7 @@
 'use strict'
 
 const assert = require('chai').assert
-const { DurabilityLevel } = require('../new_lib/generaltypes')
+const { ApiImplementation, DurabilityLevel } = require('../new_lib/generaltypes')
 const { DefaultTranscoder } = require('../new_lib/transcoders')
 // const { MutationToken: ClassicMutationToken } = require('../new_lib/classic/mutationstate')
 const { MutationToken } = require('../new_lib/protostellar/mutationstate')
@@ -166,13 +166,10 @@ function genericTests(collFn) {
           }
         )
 
-        await H.sleep(2000)
-
-        // Ensure the key is gone
-        await H.throwsHelper(async () => {
+        await H.tryNumTimesUntilErr(async () => {
           await collFn().get(testKeyPe)
-        })
-      }).timeout(3500)
+        }, 5, 1000)
+      }).timeout(6000)
     })
 
     describe('#get', function () {
@@ -315,7 +312,6 @@ function genericTests(collFn) {
       })
 
       it('should successfully perform exists -> true', async function () {
-        H.skipIfProtostellar(this, 'ING-58, ING-362')
         var res = await collFn().exists(testKeyA)
         assert.isObject(res)
         assert.strictEqual(res.exists, true)
@@ -323,16 +319,18 @@ function genericTests(collFn) {
       })
 
       it('should successfully perform exists -> false', async function () {
-        H.skipIfProtostellar(this, 'ING-58, ING-362')
         var res = await collFn().exists('a-missing-key')
         assert.isObject(res)
         assert.strictEqual(res.exists, false)
-        assert.isNotEmpty(res.cas)
+        if(collFn().apiImplementation == ApiImplementation.Protostellar) {
+          assert.isTrue(res.cas === 0)
+        } else {
+          assert.isNotEmpty(res.cas)
+        }
         assert.isNotOk(parseInt(res.cas.toString()))
       })
 
       it('should perform basic exists with callback', function (callback) {
-        H.skipIfProtostellar(this, 'ING-58, ING-362')
         collFn().exists(testKeyA, (err, res) => {
           assert.isObject(res)
           assert.strictEqual(res.exists, true)
@@ -341,7 +339,6 @@ function genericTests(collFn) {
       })
 
       it('should perform basic exists with options and callback', function (callback) {
-        H.skipIfProtostellar(this, 'ING-58, ING-362')
         collFn().exists(testKeyA, { timeout: 5 }, (err, res) => {
           assert.isObject(res)
           assert.strictEqual(res.exists, true)
@@ -350,7 +347,6 @@ function genericTests(collFn) {
       })
 
       it('should perform errored exists with callback', function (callback) {
-        H.skipIfProtostellar(this, 'ING-58, ING-362')
         collFn().get('a-missing-key', (err, res) => {
           res
           assert.isOk(err)
@@ -403,7 +399,6 @@ function genericTests(collFn) {
       })
 
       it('should cas mismatch when replacing with wrong cas', async function () {
-        H.skipIfProtostellar(this, 'ING-355')
         var getRes = await collFn().get(testKeyA)
 
         await collFn().replace(testKeyA, { foo: 'boz' })
@@ -511,12 +506,10 @@ function genericTests(collFn) {
         assert.isObject(res)
         assert.isOk(res.cas)
 
-        await H.sleep(2000)
-
-        await H.throwsHelper(async () => {
+        await H.tryNumTimesUntilErr(async () => {
           await collFn().get(testKeyExp)
-        })
-      }).timeout(4000)
+        }, 5, 1000)
+      }).timeout(6000)
     })
 
     describe('#serverDurability', function () {
@@ -668,7 +661,6 @@ function genericTests(collFn) {
 
     describe('#touch', function () {
       it('should touch a document successfully (slow)', async function () {
-        H.skipIfProtostellar(this, 'ING-370')
         const testKeyTch = H.genTestKey()
 
         // Insert a test document
@@ -702,7 +694,6 @@ function genericTests(collFn) {
 
     describe('#getAndTouch', function () {
       it('should touch a document successfully (slow)', async function () {
-        H.skipIfProtostellar(this, 'ING-370')
         const testKeyGat = H.genTestKey()
 
         // Insert a test document
@@ -830,7 +821,6 @@ function genericTests(collFn) {
       testKeyBin = H.genTestKey()
 
       await collFn().insert(testKeyBin, 14)
-      // H.skipIfProtostellar(this, 'TBD - durability not implemented')
     })
 
     after(async function () {
@@ -1178,6 +1168,7 @@ function genericTests(collFn) {
       testKeyLck = H.genTestKey()
 
       await collFn().insert(testKeyLck, { foo: 14 })
+      // I think this is pending retries on the Node client
       H.skipIfProtostellar(this, 'ING-373')
     })
 
@@ -1246,20 +1237,18 @@ function genericTests(collFn) {
         H.lib.LookupInSpec.get('baz'),
         H.lib.LookupInSpec.get('bar'),
         // Until ING-362 is ready
-        // H.lib.LookupInSpec.exists('not-exists'),
+        H.lib.LookupInSpec.exists('not-exists'),
       ])
       assert.isObject(res)
       assert.isOk(res.cas)
       assert.isArray(res.content)
-      // assert.strictEqual(res.content.length, 3)
-      // Until ING-362 is ready
-      assert.strictEqual(res.content.length, 2)
+      assert.strictEqual(res.content.length, 3)
       assert.isNotOk(res.content[0].error)
       assert.deepStrictEqual(res.content[0].value, 'hello')
       assert.isNotOk(res.content[1].error)
       assert.deepStrictEqual(res.content[1].value, 2)
-      // assert.isNotOk(res.content[2].error)
-      // assert.deepStrictEqual(res.content[2].value, false)
+      assert.isNotOk(res.content[2].error)
+      assert.deepStrictEqual(res.content[2].value, false)
 
       // BUG JSCBC-730: Check to make sure that the results property
       // returns the same as the content property.
@@ -1275,7 +1264,7 @@ function genericTests(collFn) {
     })
 
     it('should mutateIn successfully', async function () {
-      H.skipIfProtostellar(this, 'ING-363')
+      // H.skipIfProtostellar(this, 'ING-363')
       var res = await collFn().mutateIn(testKeySd, [
         H.lib.MutateInSpec.increment('bar', 3),
         H.lib.MutateInSpec.upsert('baz', 'world'),
@@ -1297,7 +1286,7 @@ function genericTests(collFn) {
     })
 
     it('should cas mismatch when mutatein with wrong cas', async function () {
-      H.skipIfProtostellar(this, 'ING-363')
+      // H.skipIfProtostellar(this, 'ING-363')
       var getRes = await collFn().get(testKeySd)
 
       await collFn().replace(testKeySd, { bar: 1 })

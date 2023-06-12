@@ -2,6 +2,7 @@
 
 const { assert } = require('chai')
 const H = require('./harness')
+const { ApiImplementation } = require('../new_lib/generaltypes')
 
 describe('#collectionmanager', function () {
   let testScope, testColl
@@ -20,28 +21,31 @@ describe('#collectionmanager', function () {
 
   it('should emit the correct error on duplicate scopes', async function () {
     var cmgr = H.b.collections()
+    const err = H.c.apiImplementation == ApiImplementation.Protostellar ? H.lib.CouchbaseError : H.lib.ScopeExistsError
     await H.throwsHelper(async () => {
       await cmgr.createScope(testScope)
-    }, H.lib.ScopeExistsError)
+    }, err)
   })
 
   it('should successfully create a collection', async function () {
     var cmgr = H.b.collections()
-    await cmgr.createCollection(testColl, testScope)
+    await cmgr.createCollection({name: testColl, scopeName: testScope})
   })
 
   it('should emit the correct error on duplicate collections', async function () {
     var cmgr = H.b.collections()
+    const err = H.c.apiImplementation == ApiImplementation.Protostellar ? H.lib.CouchbaseError : H.lib.CollectionExistsError
     await H.throwsHelper(async () => {
-      await cmgr.createCollection(testColl, testScope)
-    }, H.lib.CollectionExistsError)
+      await cmgr.createCollection({ name:testColl, scopeName:testScope })
+    }, err)
   })
 
   it('should emit the correct error on missing scopes', async function () {
     var cmgr = H.b.collections()
+    const err = H.c.apiImplementation == ApiImplementation.Protostellar ? H.lib.CouchbaseError : H.lib.ScopeNotFoundError
     await H.throwsHelper(async () => {
-      await cmgr.createCollection('some-scope-for-testing', 'invalid-scope')
-    }, H.lib.ScopeNotFoundError)
+      await cmgr.createCollection({name: 'some-scope-for-testing', scopeName: 'invalid-scope'})
+    }, err)
   })
 
   it('should successfully fetch all scopes', async function () {
@@ -57,21 +61,23 @@ describe('#collectionmanager', function () {
 
   it('should successfully drop a collection', async function () {
     var cmgr = H.b.collections()
-    await cmgr.dropCollection(testColl, testScope)
+    await cmgr.dropCollection({name: testColl, scopeName: testScope})
   })
 
   it('should fail to drop a collection from a missing scope', async function () {
     var cmgr = H.b.collections()
+    const err = H.c.apiImplementation == ApiImplementation.Protostellar ? H.lib.CouchbaseError : H.lib.ScopeNotFoundError
     await H.throwsHelper(async () => {
-      await cmgr.createCollection(testColl, 'invalid-scope')
-    }, H.lib.ScopeNotFoundError)
+      await cmgr.createCollection({ name: testColl, scopeName: 'invalid-scope' })
+    }, err)
   })
 
   it('should fail to drop a missing collection', async function () {
     var cmgr = H.b.collections()
+    const err = H.c.apiImplementation == ApiImplementation.Protostellar ? H.lib.CouchbaseError : H.lib.CollectionNotFoundError
     await H.throwsHelper(async () => {
-      await cmgr.dropCollection(testColl, testScope)
-    }, H.lib.CollectionNotFoundError)
+      await cmgr.dropCollection({ name: testColl, scopeName: testScope })
+    }, err)
   })
 
   it('should successfully drop a scope', async function () {
@@ -81,8 +87,9 @@ describe('#collectionmanager', function () {
 
   it('should fail to drop a missing scope', async function () {
     var cmgr = H.b.collections()
+    const err = H.c.apiImplementation == ApiImplementation.Protostellar ? H.lib.CouchbaseError : H.lib.ScopeNotFoundError
     await H.throwsHelper(async () => {
       await cmgr.dropScope(testScope)
-    }, H.lib.ScopeNotFoundError)
+    }, err)
   })
 })

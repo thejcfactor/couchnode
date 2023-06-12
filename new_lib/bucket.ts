@@ -5,6 +5,7 @@ import { ApiImplementation } from './generaltypes'
 import { Bucket as ProtostellarBucket } from './protostellar/bucket'
 import { Cluster as ProtostellarCluster } from './protostellar/cluster'
 import { Scope } from './scope'
+import { CollectionManager } from './collectionmanager'
 
 /**
  * Exposes the operations which are available to be performed against a bucket.
@@ -77,5 +78,13 @@ export class Bucket {
    */
   defaultCollection(): Collection {
     return this._impl.defaultCollection()
+  }
+
+  /**
+   * Returns a BucketManager which can be used to manage the buckets
+   * of this cluster.
+   */
+  collections(): CollectionManager {
+    return new CollectionManager(this._impl)
   }
 }

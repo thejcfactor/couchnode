@@ -4,6 +4,7 @@ import { Scope } from '../scope'
 import { Transcoder } from '../transcoders'
 import { Cluster } from './cluster'
 import { ChannelCredentials, Metadata } from '@grpc/grpc-js'
+import { CollectionManager } from './collectionmanager'
 
 /**
  * Exposes the operations which are available to be performed against a bucket.
@@ -101,5 +102,13 @@ export class Bucket {
    */
   defaultCollection(): Collection {
     return this.collection(Collection.DEFAULT_NAME)
+  }
+
+  /**
+   * Returns a CollectionManager which can be used to manage the collections
+   * of this bucket.
+   */
+  collections(): CollectionManager {
+    return new CollectionManager(this)
   }
 }

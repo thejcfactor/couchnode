@@ -10,6 +10,7 @@ import { QueryServiceClient } from './generated/couchbase/query/v1/query_grpc_pb
 import { QueryRequest, QueryResponse } from './generated/couchbase/query/v1/query_pb'
 import { queryStatusFromGrpc } from './querytypes'
 import { expiryToTimestamp } from '../utilities'
+import { Metadata } from '@grpc/grpc-js'
 // import { Scope } from './scope'
 
 /**
@@ -20,12 +21,14 @@ export class QueryExecutor {
   private _bucketName?: string
   private _scopeName?: string
   private _queryTimeout: number
+  private _metadata: Metadata
 
   /**
    * @internal
    */
-  constructor(service: QueryServiceClient, queryTimeout: number, bucketName?: string, scopeName?: string) {
+  constructor(service: QueryServiceClient, metadata: Metadata, queryTimeout: number, bucketName?: string, scopeName?: string) {
     this._queryService = service
+    this._metadata = metadata
     this._queryTimeout = queryTimeout
     this._bucketName = bucketName
     this._scopeName = scopeName
@@ -60,7 +63,7 @@ export class QueryExecutor {
       })
     })
 
-    const call = this._queryService.query(req, {deadline: deadline})
+    const call = this._queryService.query(req, this._metadata, {deadline: deadline})
 
     call.on('data', function (resp: QueryResponse) {
       resp.getRowsList_asU8().forEach((row) => {

@@ -58,7 +58,9 @@ import {
   ExistsRequest,
   ExistsResponse,
   GetAndLockRequest,
+  GetAndLockResponse,
   GetAndTouchRequest,
+  GetAndTouchResponse,
   GetRequest,
   GetResponse,
   IncrementRequest,
@@ -274,7 +276,7 @@ export class Collection {
     req.setCollectionName(this.name)
 
     return PromiseHelper.wrap((wrapCallback) => {
-      this._kvService.get(
+      this._kvService.exists(
         req,
         this.metadata,
         { deadline: deadline },
@@ -777,14 +779,14 @@ export class Collection {
     req.setBucketName(this._scope.bucket.name)
     req.setScopeName(this._scope.name)
     req.setCollectionName(this.name)
-    req.setExpiryTime(expiryToTimestamp(expiry))
+    req.setExpirySecs(expiry)
 
     return PromiseHelper.wrap((wrapCallback) => {
       this._kvService.getAndTouch(
         req,
         this.metadata,
         { deadline: deadline },
-        (psErr: Error | null, resp: GetResponse) => {
+        (psErr: Error | null, resp: GetAndTouchResponse) => {
           const err = errorFromProtostellar(psErr)
           if (err) {
             return wrapCallback(err, null)
@@ -842,7 +844,7 @@ export class Collection {
     req.setBucketName(this._scope.bucket.name)
     req.setScopeName(this._scope.name)
     req.setCollectionName(this.name)
-    req.setExpiryTime(expiryToTimestamp(expiry))
+    req.setExpirySecs(expiry)
 
     return PromiseHelper.wrap((wrapCallback) => {
       this._kvService.touch(
@@ -903,7 +905,7 @@ export class Collection {
         req,
         this.metadata,
         { deadline: deadline },
-        (psErr: Error | null, resp: GetResponse) => {
+        (psErr: Error | null, resp: GetAndLockResponse) => {
           const err = errorFromProtostellar(psErr)
           if (err) {
             return wrapCallback(err, null)

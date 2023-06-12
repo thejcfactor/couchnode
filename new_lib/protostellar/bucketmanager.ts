@@ -129,7 +129,6 @@ export class BucketManager {
 
     const deadline = Date.now() + (options.timeout || this._cluster.managementTimeout)
     const req = this._toProtostellarUpdateBucketRequest(settings)
-
     return PromiseHelper.wrap((wrapCallback) => {
       this._bucketService.updateBucket(
         req,
@@ -206,12 +205,15 @@ export class BucketManager {
       options = {}
     }
 
-    const buckets = await this.getAllBuckets(options)
-    const bucket = buckets.find((bucket) => bucket.name === bucketName)
-    if(typeof bucket === 'undefined'){
-      throw new BucketNotFoundError()
-    }
-    return bucket
+    return PromiseHelper.wrapAsync(async () => {
+      const buckets = await this.getAllBuckets(options)
+      const bucket = buckets.find((bucket) => bucket.name === bucketName)
+      if(typeof bucket === 'undefined'){
+        throw new BucketNotFoundError()
+      }
+      return bucket
+    }, callback)
+
   }
 
   /**
@@ -284,8 +286,8 @@ export class BucketManager {
     const req = new CreateBucketRequest()
     req.setBucketName(data.name)
     req.setBucketType(this._toProtostellarBucketType(data.bucketType || ClassicBucketType.Couchbase))
-    const ramQuotaBytes = data.ramQuotaMB * 1024 * 1024
-    req.setRamQuotaBytes(ramQuotaBytes)
+    const ramQuotaMb = data.ramQuotaMB * 1024 * 1024
+    req.setRamQuotaMb(ramQuotaMb)
     req.setNumReplicas(data.numReplicas || 0)
     if(data.flushEnabled) {
       req.setFlushEnabled(data.flushEnabled)
@@ -324,8 +326,8 @@ export class BucketManager {
     req.setBucketName(data.name)
     // BucketType not in PS UpdateBucketRequest
     // req.setBucketType(this._toProtostellarBucketType(data.bucketType || ClassicBucketType.Couchbase))
-    const ramQuotaBytes = data.ramQuotaMB * 1024 * 1024
-    req.setRamQuotaBytes(ramQuotaBytes)
+    const ramQuotaMb = data.ramQuotaMB * 1024 * 1024
+    req.setRamQuotaMb(ramQuotaMb)
     req.setNumReplicas(data.numReplicas || 0)
     if(data.flushEnabled) {
       req.setFlushEnabled(data.flushEnabled)
@@ -515,7 +517,8 @@ export class BucketManager {
     return new BucketSettings({
       name: bucket.getBucketName(),
       bucketType: this._bucketTypeFromProtostellar(bucket.getBucketType()),
-      ramQuotaMB: bucket.getRamQuotaBytes() / 1024 / 1024,
+      ramQuotaMB: bucket.getRamQuotaMb() / 1024 / 1024,
+      // ramQuotaMB: bucket.getRamQuotaMb(),
       maxExpiry: bucket.getMaxExpirySecs(),
       numReplicas: bucket.getNumReplicas(),
       replicaIndexes: bucket.getReplicaIndexes(),

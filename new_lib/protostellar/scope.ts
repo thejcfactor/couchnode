@@ -129,6 +129,7 @@ export class Scope {
     const bucket = this.bucket
     const exec = new QueryExecutor(
       this.queryService,
+      this.metadata,
       this.cluster.queryTimeout,
       this.bucket.name,
       this.name

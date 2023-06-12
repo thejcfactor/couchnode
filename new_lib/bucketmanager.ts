@@ -313,30 +313,6 @@ export interface ICreateBucketSettings extends IBucketSettings {
 }
 
 /**
- * We intentionally do not export this class as it is never returned back
- * to the user, but we still need the ability to translate to NS data.
- *
- * @internal
- */
-class CreateBucketSettings
-  extends BucketSettings
-  implements ICreateBucketSettings
-{
-  /**
-   * Specifies the conflict resolution mode to use for XDCR of this bucket.
-   */
-  conflictResolutionType?: ConflictResolutionType
-
-  /**
-   * @internal
-   */
-  constructor(data: CreateBucketSettings) {
-    super(data)
-    this.conflictResolutionType = data.conflictResolutionType
-  }
-}
-
-/**
  * @category Management
  */
 export interface CreateBucketOptions {

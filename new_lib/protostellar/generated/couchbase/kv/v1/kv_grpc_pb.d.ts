@@ -11,7 +11,6 @@ interface IKvServiceService extends grpc.ServiceDefinition<grpc.UntypedServiceIm
   getAndTouch: grpc.MethodDefinition<couchbase_kv_v1_kv_pb.GetAndTouchRequest, couchbase_kv_v1_kv_pb.GetAndTouchResponse>;
   getAndLock: grpc.MethodDefinition<couchbase_kv_v1_kv_pb.GetAndLockRequest, couchbase_kv_v1_kv_pb.GetAndLockResponse>;
   unlock: grpc.MethodDefinition<couchbase_kv_v1_kv_pb.UnlockRequest, couchbase_kv_v1_kv_pb.UnlockResponse>;
-  getReplica: grpc.MethodDefinition<couchbase_kv_v1_kv_pb.GetReplicaRequest, couchbase_kv_v1_kv_pb.GetReplicaResponse>;
   touch: grpc.MethodDefinition<couchbase_kv_v1_kv_pb.TouchRequest, couchbase_kv_v1_kv_pb.TouchResponse>;
   exists: grpc.MethodDefinition<couchbase_kv_v1_kv_pb.ExistsRequest, couchbase_kv_v1_kv_pb.ExistsResponse>;
   insert: grpc.MethodDefinition<couchbase_kv_v1_kv_pb.InsertRequest, couchbase_kv_v1_kv_pb.InsertResponse>;
@@ -24,6 +23,7 @@ interface IKvServiceService extends grpc.ServiceDefinition<grpc.UntypedServiceIm
   prepend: grpc.MethodDefinition<couchbase_kv_v1_kv_pb.PrependRequest, couchbase_kv_v1_kv_pb.PrependResponse>;
   lookupIn: grpc.MethodDefinition<couchbase_kv_v1_kv_pb.LookupInRequest, couchbase_kv_v1_kv_pb.LookupInResponse>;
   mutateIn: grpc.MethodDefinition<couchbase_kv_v1_kv_pb.MutateInRequest, couchbase_kv_v1_kv_pb.MutateInResponse>;
+  getAllReplicas: grpc.MethodDefinition<couchbase_kv_v1_kv_pb.GetAllReplicasRequest, couchbase_kv_v1_kv_pb.GetAllReplicasResponse>;
   rangeScan: grpc.MethodDefinition<couchbase_kv_v1_kv_pb.RangeScanRequest, couchbase_kv_v1_kv_pb.RangeScanResponse>;
 }
 
@@ -34,7 +34,6 @@ export interface IKvServiceServer extends grpc.UntypedServiceImplementation {
   getAndTouch: grpc.handleUnaryCall<couchbase_kv_v1_kv_pb.GetAndTouchRequest, couchbase_kv_v1_kv_pb.GetAndTouchResponse>;
   getAndLock: grpc.handleUnaryCall<couchbase_kv_v1_kv_pb.GetAndLockRequest, couchbase_kv_v1_kv_pb.GetAndLockResponse>;
   unlock: grpc.handleUnaryCall<couchbase_kv_v1_kv_pb.UnlockRequest, couchbase_kv_v1_kv_pb.UnlockResponse>;
-  getReplica: grpc.handleUnaryCall<couchbase_kv_v1_kv_pb.GetReplicaRequest, couchbase_kv_v1_kv_pb.GetReplicaResponse>;
   touch: grpc.handleUnaryCall<couchbase_kv_v1_kv_pb.TouchRequest, couchbase_kv_v1_kv_pb.TouchResponse>;
   exists: grpc.handleUnaryCall<couchbase_kv_v1_kv_pb.ExistsRequest, couchbase_kv_v1_kv_pb.ExistsResponse>;
   insert: grpc.handleUnaryCall<couchbase_kv_v1_kv_pb.InsertRequest, couchbase_kv_v1_kv_pb.InsertResponse>;
@@ -47,6 +46,7 @@ export interface IKvServiceServer extends grpc.UntypedServiceImplementation {
   prepend: grpc.handleUnaryCall<couchbase_kv_v1_kv_pb.PrependRequest, couchbase_kv_v1_kv_pb.PrependResponse>;
   lookupIn: grpc.handleUnaryCall<couchbase_kv_v1_kv_pb.LookupInRequest, couchbase_kv_v1_kv_pb.LookupInResponse>;
   mutateIn: grpc.handleUnaryCall<couchbase_kv_v1_kv_pb.MutateInRequest, couchbase_kv_v1_kv_pb.MutateInResponse>;
+  getAllReplicas: grpc.handleServerStreamingCall<couchbase_kv_v1_kv_pb.GetAllReplicasRequest, couchbase_kv_v1_kv_pb.GetAllReplicasResponse>;
   rangeScan: grpc.handleUnaryCall<couchbase_kv_v1_kv_pb.RangeScanRequest, couchbase_kv_v1_kv_pb.RangeScanResponse>;
 }
 
@@ -64,9 +64,6 @@ export class KvServiceClient extends grpc.Client {
   unlock(argument: couchbase_kv_v1_kv_pb.UnlockRequest, callback: grpc.requestCallback<couchbase_kv_v1_kv_pb.UnlockResponse>): grpc.ClientUnaryCall;
   unlock(argument: couchbase_kv_v1_kv_pb.UnlockRequest, metadataOrOptions: grpc.Metadata | grpc.CallOptions | null, callback: grpc.requestCallback<couchbase_kv_v1_kv_pb.UnlockResponse>): grpc.ClientUnaryCall;
   unlock(argument: couchbase_kv_v1_kv_pb.UnlockRequest, metadata: grpc.Metadata | null, options: grpc.CallOptions | null, callback: grpc.requestCallback<couchbase_kv_v1_kv_pb.UnlockResponse>): grpc.ClientUnaryCall;
-  getReplica(argument: couchbase_kv_v1_kv_pb.GetReplicaRequest, callback: grpc.requestCallback<couchbase_kv_v1_kv_pb.GetReplicaResponse>): grpc.ClientUnaryCall;
-  getReplica(argument: couchbase_kv_v1_kv_pb.GetReplicaRequest, metadataOrOptions: grpc.Metadata | grpc.CallOptions | null, callback: grpc.requestCallback<couchbase_kv_v1_kv_pb.GetReplicaResponse>): grpc.ClientUnaryCall;
-  getReplica(argument: couchbase_kv_v1_kv_pb.GetReplicaRequest, metadata: grpc.Metadata | null, options: grpc.CallOptions | null, callback: grpc.requestCallback<couchbase_kv_v1_kv_pb.GetReplicaResponse>): grpc.ClientUnaryCall;
   touch(argument: couchbase_kv_v1_kv_pb.TouchRequest, callback: grpc.requestCallback<couchbase_kv_v1_kv_pb.TouchResponse>): grpc.ClientUnaryCall;
   touch(argument: couchbase_kv_v1_kv_pb.TouchRequest, metadataOrOptions: grpc.Metadata | grpc.CallOptions | null, callback: grpc.requestCallback<couchbase_kv_v1_kv_pb.TouchResponse>): grpc.ClientUnaryCall;
   touch(argument: couchbase_kv_v1_kv_pb.TouchRequest, metadata: grpc.Metadata | null, options: grpc.CallOptions | null, callback: grpc.requestCallback<couchbase_kv_v1_kv_pb.TouchResponse>): grpc.ClientUnaryCall;
@@ -103,6 +100,8 @@ export class KvServiceClient extends grpc.Client {
   mutateIn(argument: couchbase_kv_v1_kv_pb.MutateInRequest, callback: grpc.requestCallback<couchbase_kv_v1_kv_pb.MutateInResponse>): grpc.ClientUnaryCall;
   mutateIn(argument: couchbase_kv_v1_kv_pb.MutateInRequest, metadataOrOptions: grpc.Metadata | grpc.CallOptions | null, callback: grpc.requestCallback<couchbase_kv_v1_kv_pb.MutateInResponse>): grpc.ClientUnaryCall;
   mutateIn(argument: couchbase_kv_v1_kv_pb.MutateInRequest, metadata: grpc.Metadata | null, options: grpc.CallOptions | null, callback: grpc.requestCallback<couchbase_kv_v1_kv_pb.MutateInResponse>): grpc.ClientUnaryCall;
+  getAllReplicas(argument: couchbase_kv_v1_kv_pb.GetAllReplicasRequest, metadataOrOptions?: grpc.Metadata | grpc.CallOptions | null): grpc.ClientReadableStream<couchbase_kv_v1_kv_pb.GetAllReplicasResponse>;
+  getAllReplicas(argument: couchbase_kv_v1_kv_pb.GetAllReplicasRequest, metadata?: grpc.Metadata | null, options?: grpc.CallOptions | null): grpc.ClientReadableStream<couchbase_kv_v1_kv_pb.GetAllReplicasResponse>;
   rangeScan(argument: couchbase_kv_v1_kv_pb.RangeScanRequest, callback: grpc.requestCallback<couchbase_kv_v1_kv_pb.RangeScanResponse>): grpc.ClientUnaryCall;
   rangeScan(argument: couchbase_kv_v1_kv_pb.RangeScanRequest, metadataOrOptions: grpc.Metadata | grpc.CallOptions | null, callback: grpc.requestCallback<couchbase_kv_v1_kv_pb.RangeScanResponse>): grpc.ClientUnaryCall;
   rangeScan(argument: couchbase_kv_v1_kv_pb.RangeScanRequest, metadata: grpc.Metadata | null, options: grpc.CallOptions | null, callback: grpc.requestCallback<couchbase_kv_v1_kv_pb.RangeScanResponse>): grpc.ClientUnaryCall;

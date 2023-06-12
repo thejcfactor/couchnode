@@ -1,7 +1,7 @@
 import {
   Authenticator,
   PasswordAuthenticator,
-  // CertificateAuthenticator,
+  CertificateAuthenticator,
 } from '../authenticators'
 import { Bucket } from '../bucket'
 import { ConnectOptions, DnsConfig } from '../cluster'
@@ -16,6 +16,8 @@ import { QueryServiceClient } from './generated/couchbase/query/v1/query_grpc_pb
 import { QueryExecutor } from './queryexecutor'
 import * as grpc from '@grpc/grpc-js'
 import { ChannelCredentials, Metadata } from '@grpc/grpc-js'
+import { readFileSync } from 'fs'
+import { PeerCertificate } from 'tls'
 
 /**
  * @internal
@@ -326,7 +328,7 @@ export class Cluster {
     if (!options) {
       options = {}
     }
-    const exec = new QueryExecutor(this.queryService, this.queryTimeout)
+    const exec = new QueryExecutor(this.queryService, this.metadata, this.queryTimeout)
 
     const options_ = options
     return PromiseHelper.wrapAsync(
@@ -368,18 +370,15 @@ export class Cluster {
 
         // @TODO(jc):  Do we need this w/ PS?
         // dsnObj.options.user_agent_extra = generateClientString()
-
         const connStr = dsnObj.toString(true)
 
         // @TODO(jc):  How to handle Authenticators?
-        // dsnObj.options.trust_certificate = this._trustStorePath
-        // const authOpts = {
-        //   username: undefined as string | undefined,
-        //   password: undefined as string | undefined,
-        //   certificate_path: undefined as string | undefined,
-        //   key_path: undefined as string | undefined,
-        //   allowed_sasl_mechanisms: ['SCRAM-SHA512', 'SCRAM-SHA256', 'SCRAM-SHA1'],
-        // }
+        const certOpts = {
+          certificatePath: undefined as string | undefined,
+          keyPath: undefined as string | undefined,
+        }
+
+        
 
         if (this._auth) {
           const passAuth = this._auth as PasswordAuthenticator
@@ -388,23 +387,24 @@ export class Cluster {
             const authStr = `Basic ${token.toString('base64')}`
             this._conn.metadata = new Metadata()
             this._conn.metadata.add('authorization', authStr)
-        //     authOpts.username = passAuth.username
-        //     authOpts.password = passAuth.password
-
-        //     if (passAuth.allowed_sasl_mechanisms) {
-        //       authOpts.allowed_sasl_mechanisms = passAuth.allowed_sasl_mechanisms
-        //     }
           }
 
-        //   const certAuth = this._auth as CertificateAuthenticator
-        //   if (certAuth.certificatePath || certAuth.keyPath) {
-        //     authOpts.certificate_path = certAuth.certificatePath
-        //     authOpts.key_path = certAuth.keyPath
-        //   }
+          const certAuth = this._auth as CertificateAuthenticator
+          if (certAuth.certificatePath || certAuth.keyPath) {
+            certOpts.certificatePath = certAuth.certificatePath
+            certOpts.keyPath = certAuth.keyPath
+          }
+
+          const privateKey = certOpts.keyPath != undefined ? readFileSync(certOpts.keyPath) : undefined
+          const chainCert = certOpts.certificatePath != undefined ? readFileSync(certOpts.certificatePath) : undefined
+          const rootCerts = this._trustStorePath != '' ? readFileSync(this._trustStorePath) : undefined
+          // const noVerify = (hostname: string, cert: PeerCertificate) => { return undefined }
+          // this._conn.channel = grpc.credentials.createSsl(rootCerts, privateKey, chainCert, { checkServerIdentity: noVerify })
+          this._conn.channel = grpc.credentials.createSsl(rootCerts, privateKey, chainCert)
         }
 
         this._connStr = connStr
-        this._conn.channel = grpc.credentials.createInsecure()
+        
         this._conn.queryService = new QueryServiceClient(connStr, this._conn.channel)
 
         resolve(null)
@@ -412,15 +412,6 @@ export class Cluster {
         // @TODO(jc):  translate to Couchbase Err
         reject(e)
       }
-
-      // this._conn.connect(connStr, authOpts, this._dnsConfig, (cppErr) => {
-      //   if (cppErr) {
-      //     const err = errorFromCpp(cppErr)
-      //     return reject(err)
-      //   }
-
-      //   resolve(null)
-      // })
     })
   }
 }

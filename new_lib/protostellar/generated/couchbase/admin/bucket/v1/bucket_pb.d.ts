@@ -48,8 +48,8 @@ export namespace ListBucketsResponse {
     getFlushEnabled(): boolean;
     setFlushEnabled(value: boolean): void;
 
-    getRamQuotaBytes(): number;
-    setRamQuotaBytes(value: number): void;
+    getRamQuotaMb(): number;
+    setRamQuotaMb(value: number): void;
 
     getNumReplicas(): number;
     setNumReplicas(value: number): void;
@@ -69,6 +69,8 @@ export namespace ListBucketsResponse {
     getCompressionMode(): CompressionModeMap[keyof CompressionModeMap];
     setCompressionMode(value: CompressionModeMap[keyof CompressionModeMap]): void;
 
+    hasMinimumDurabilityLevel(): boolean;
+    clearMinimumDurabilityLevel(): void;
     getMinimumDurabilityLevel(): couchbase_kv_v1_kv_pb.DurabilityLevelMap[keyof couchbase_kv_v1_kv_pb.DurabilityLevelMap];
     setMinimumDurabilityLevel(value: couchbase_kv_v1_kv_pb.DurabilityLevelMap[keyof couchbase_kv_v1_kv_pb.DurabilityLevelMap]): void;
 
@@ -92,7 +94,7 @@ export namespace ListBucketsResponse {
     export type AsObject = {
       bucketName: string,
       flushEnabled: boolean,
-      ramQuotaBytes: number,
+      ramQuotaMb: number,
       numReplicas: number,
       replicaIndexes: boolean,
       bucketType: BucketTypeMap[keyof BucketTypeMap],
@@ -113,9 +115,13 @@ export class CreateBucketRequest extends jspb.Message {
   getBucketType(): BucketTypeMap[keyof BucketTypeMap];
   setBucketType(value: BucketTypeMap[keyof BucketTypeMap]): void;
 
-  getRamQuotaBytes(): number;
-  setRamQuotaBytes(value: number): void;
+  hasRamQuotaMb(): boolean;
+  clearRamQuotaMb(): void;
+  getRamQuotaMb(): number;
+  setRamQuotaMb(value: number): void;
 
+  hasNumReplicas(): boolean;
+  clearNumReplicas(): void;
   getNumReplicas(): number;
   setNumReplicas(value: number): void;
 
@@ -173,7 +179,7 @@ export namespace CreateBucketRequest {
   export type AsObject = {
     bucketName: string,
     bucketType: BucketTypeMap[keyof BucketTypeMap],
-    ramQuotaBytes: number,
+    ramQuotaMb: number,
     numReplicas: number,
     flushEnabled: boolean,
     replicaIndexes: boolean,
@@ -210,10 +216,10 @@ export class UpdateBucketRequest extends jspb.Message {
   getBucketName(): string;
   setBucketName(value: string): void;
 
-  hasRamQuotaBytes(): boolean;
-  clearRamQuotaBytes(): void;
-  getRamQuotaBytes(): number;
-  setRamQuotaBytes(value: number): void;
+  hasRamQuotaMb(): boolean;
+  clearRamQuotaMb(): void;
+  getRamQuotaMb(): number;
+  setRamQuotaMb(value: number): void;
 
   hasNumReplicas(): boolean;
   clearNumReplicas(): void;
@@ -268,7 +274,7 @@ export class UpdateBucketRequest extends jspb.Message {
 export namespace UpdateBucketRequest {
   export type AsObject = {
     bucketName: string,
-    ramQuotaBytes: number,
+    ramQuotaMb: number,
     numReplicas: number,
     flushEnabled: boolean,
     replicaIndexes: boolean,

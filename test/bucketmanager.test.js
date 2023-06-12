@@ -1,6 +1,7 @@
 'use strict'
 
 const assert = require('chai').assert
+const { ApiImplementation } = require('../new_lib/generaltypes')
 
 const H = require('./harness')
 
@@ -40,14 +41,17 @@ describe('#bucketmanager', function () {
       name: testBucket,
       flushEnabled: true,
       ramQuotaMB: 256,
-      numReplicas: 1,
+      // numReplicas: 1,
+      numReplicas: 0,
+      // replicaIndexes: false,
       replicaIndexes: true,
       bucketType: 'membase',
       storageBackend: 'couchstore',
       evictionPolicy: 'valueOnly',
       maxExpiry: 0,
       compressionMode: 'passive',
-      minimumDurabilityLevel: 0,
+      // minimumDurabilityLevel: 0,
+      minimumDurabilityLevel: 1,
     }
     assert.deepStrictEqual(res, expected)
   })
@@ -67,15 +71,23 @@ describe('#bucketmanager', function () {
   })
 
   it('should successfully flush a bucket', async function () {
-    var bmgr = H.c.buckets()
-    await bmgr.flushBucket(testBucket)
+    if(H.c.apiImplementation == ApiImplementation.Protostellar) {
+      await H.throwsHelper(async () => {
+        var bmgr = H.c.buckets()
+        await bmgr.flushBucket(testBucket)
+      }, H.lib.FeatureNotAvailableError)
+    } else {
+      var bmgr = H.c.buckets()
+      await bmgr.flushBucket(testBucket)
+    }
   }).timeout(10 * 1000)
 
   it('should error when trying to flush a missing bucket', async function () {
+    const err = H.c.apiImplementation == ApiImplementation.Protostellar ? H.lib.FeatureNotAvailableError : H.lib.BucketNotFoundError
     var bmgr = H.c.buckets()
     await H.throwsHelper(async () => {
       await bmgr.flushBucket('invalid-bucket')
-    }, H.lib.BucketNotFoundError)
+    }, err)
   })
 
   it('should successfully update a bucket', async function () {
@@ -83,6 +95,7 @@ describe('#bucketmanager', function () {
     await bmgr.updateBucket({
       name: testBucket,
       flushEnabled: false,
+      ramQuotaMB: 256, // required for PS
     })
   })
 
@@ -120,14 +133,17 @@ describe('#bucketmanager', function () {
       name: testBucket,
       flushEnabled: false,
       ramQuotaMB: 256,
-      numReplicas: 1,
-      replicaIndexes: false,
+      // numReplicas: 1,
+      numReplicas: 0,
+      // replicaIndexes: false,
+      replicaIndexes: true,
       bucketType: 'membase',
       storageBackend: 'couchstore',
       evictionPolicy: 'valueOnly',
       maxExpiry: 0,
       compressionMode: 'passive',
-      minimumDurabilityLevel: 0,
+      // minimumDurabilityLevel: 0,
+      minimumDurabilityLevel: 1,
     }
     assert.deepStrictEqual(res, expected)
 

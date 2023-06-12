@@ -74,6 +74,11 @@ export class GetRequest extends jspb.Message {
   getKey(): string;
   setKey(value: string): void;
 
+  clearProjectList(): void;
+  getProjectList(): Array<string>;
+  setProjectList(value: Array<string>): void;
+  addProject(value: string, index?: number): string;
+
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): GetRequest.AsObject;
   static toObject(includeInstance: boolean, msg: GetRequest): GetRequest.AsObject;
@@ -90,6 +95,7 @@ export namespace GetRequest {
     scopeName: string,
     collectionName: string,
     key: string,
+    projectList: Array<string>,
   }
 }
 
@@ -280,78 +286,6 @@ export class GetAndLockResponse extends jspb.Message {
 }
 
 export namespace GetAndLockResponse {
-  export type AsObject = {
-    content: Uint8Array | string,
-    contentFlags: number,
-    cas: number,
-    expiry?: google_protobuf_timestamp_pb.Timestamp.AsObject,
-  }
-}
-
-export class GetReplicaRequest extends jspb.Message {
-  getBucketName(): string;
-  setBucketName(value: string): void;
-
-  getScopeName(): string;
-  setScopeName(value: string): void;
-
-  getCollectionName(): string;
-  setCollectionName(value: string): void;
-
-  getKey(): string;
-  setKey(value: string): void;
-
-  getReplicaIndex(): number;
-  setReplicaIndex(value: number): void;
-
-  serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): GetReplicaRequest.AsObject;
-  static toObject(includeInstance: boolean, msg: GetReplicaRequest): GetReplicaRequest.AsObject;
-  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
-  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: GetReplicaRequest, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): GetReplicaRequest;
-  static deserializeBinaryFromReader(message: GetReplicaRequest, reader: jspb.BinaryReader): GetReplicaRequest;
-}
-
-export namespace GetReplicaRequest {
-  export type AsObject = {
-    bucketName: string,
-    scopeName: string,
-    collectionName: string,
-    key: string,
-    replicaIndex: number,
-  }
-}
-
-export class GetReplicaResponse extends jspb.Message {
-  getContent(): Uint8Array | string;
-  getContent_asU8(): Uint8Array;
-  getContent_asB64(): string;
-  setContent(value: Uint8Array | string): void;
-
-  getContentFlags(): number;
-  setContentFlags(value: number): void;
-
-  getCas(): number;
-  setCas(value: number): void;
-
-  hasExpiry(): boolean;
-  clearExpiry(): void;
-  getExpiry(): google_protobuf_timestamp_pb.Timestamp | undefined;
-  setExpiry(value?: google_protobuf_timestamp_pb.Timestamp): void;
-
-  serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): GetReplicaResponse.AsObject;
-  static toObject(includeInstance: boolean, msg: GetReplicaResponse): GetReplicaResponse.AsObject;
-  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
-  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
-  static serializeBinaryToWriter(message: GetReplicaResponse, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): GetReplicaResponse;
-  static deserializeBinaryFromReader(message: GetReplicaResponse, reader: jspb.BinaryReader): GetReplicaResponse;
-}
-
-export namespace GetReplicaResponse {
   export type AsObject = {
     content: Uint8Array | string,
     contentFlags: number,
@@ -1668,6 +1602,72 @@ export namespace MutateInResponse {
     export type AsObject = {
       content: Uint8Array | string,
     }
+  }
+}
+
+export class GetAllReplicasRequest extends jspb.Message {
+  getBucketName(): string;
+  setBucketName(value: string): void;
+
+  getScopeName(): string;
+  setScopeName(value: string): void;
+
+  getCollectionName(): string;
+  setCollectionName(value: string): void;
+
+  getKey(): string;
+  setKey(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): GetAllReplicasRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: GetAllReplicasRequest): GetAllReplicasRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: GetAllReplicasRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): GetAllReplicasRequest;
+  static deserializeBinaryFromReader(message: GetAllReplicasRequest, reader: jspb.BinaryReader): GetAllReplicasRequest;
+}
+
+export namespace GetAllReplicasRequest {
+  export type AsObject = {
+    bucketName: string,
+    scopeName: string,
+    collectionName: string,
+    key: string,
+  }
+}
+
+export class GetAllReplicasResponse extends jspb.Message {
+  getIsReplica(): boolean;
+  setIsReplica(value: boolean): void;
+
+  getContent(): Uint8Array | string;
+  getContent_asU8(): Uint8Array;
+  getContent_asB64(): string;
+  setContent(value: Uint8Array | string): void;
+
+  getContentFlags(): number;
+  setContentFlags(value: number): void;
+
+  getCas(): number;
+  setCas(value: number): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): GetAllReplicasResponse.AsObject;
+  static toObject(includeInstance: boolean, msg: GetAllReplicasResponse): GetAllReplicasResponse.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: GetAllReplicasResponse, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): GetAllReplicasResponse;
+  static deserializeBinaryFromReader(message: GetAllReplicasResponse, reader: jspb.BinaryReader): GetAllReplicasResponse;
+}
+
+export namespace GetAllReplicasResponse {
+  export type AsObject = {
+    isReplica: boolean,
+    content: Uint8Array | string,
+    contentFlags: number,
+    cas: number,
   }
 }
 

@@ -10406,7 +10406,9 @@ proto.couchbase.search.v1.SearchQueryRequest.toObject = function(includeInstance
     disableScoring: jspb.Message.getBooleanFieldWithDefault(msg, 11, false),
     collectionsList: (f = jspb.Message.getRepeatedField(msg, 12)) == null ? undefined : f,
     includeLocations: jspb.Message.getBooleanFieldWithDefault(msg, 13, false),
-    facetsMap: (f = msg.getFacetsMap()) ? f.toObject(includeInstance, proto.couchbase.search.v1.Facet.toObject) : []
+    facetsMap: (f = msg.getFacetsMap()) ? f.toObject(includeInstance, proto.couchbase.search.v1.Facet.toObject) : [],
+    bucketName: jspb.Message.getFieldWithDefault(msg, 15, ""),
+    scopeName: jspb.Message.getFieldWithDefault(msg, 16, "")
   };
 
   if (includeInstance) {
@@ -10502,6 +10504,14 @@ proto.couchbase.search.v1.SearchQueryRequest.deserializeBinaryFromReader = funct
       reader.readMessage(value, function(message, reader) {
         jspb.Map.deserializeBinary(message, reader, jspb.BinaryReader.prototype.readString, jspb.BinaryReader.prototype.readMessage, proto.couchbase.search.v1.Facet.deserializeBinaryFromReader, "", new proto.couchbase.search.v1.Facet());
          });
+      break;
+    case 15:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setBucketName(value);
+      break;
+    case 16:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setScopeName(value);
       break;
     default:
       reader.skipField();
@@ -10628,6 +10638,20 @@ proto.couchbase.search.v1.SearchQueryRequest.serializeBinaryToWriter = function(
   f = message.getFacetsMap(true);
   if (f && f.getLength() > 0) {
     f.serializeBinary(14, writer, jspb.BinaryWriter.prototype.writeString, jspb.BinaryWriter.prototype.writeMessage, proto.couchbase.search.v1.Facet.serializeBinaryToWriter);
+  }
+  f = /** @type {string} */ (jspb.Message.getField(message, 15));
+  if (f != null) {
+    writer.writeString(
+      15,
+      f
+    );
+  }
+  f = /** @type {string} */ (jspb.Message.getField(message, 16));
+  if (f != null) {
+    writer.writeString(
+      16,
+      f
+    );
   }
 };
 
@@ -10998,6 +11022,78 @@ proto.couchbase.search.v1.SearchQueryRequest.prototype.getFacetsMap = function(o
 proto.couchbase.search.v1.SearchQueryRequest.prototype.clearFacetsMap = function() {
   this.getFacetsMap().clear();
   return this;};
+
+
+/**
+ * optional string bucket_name = 15;
+ * @return {string}
+ */
+proto.couchbase.search.v1.SearchQueryRequest.prototype.getBucketName = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 15, ""));
+};
+
+
+/**
+ * @param {string} value
+ * @return {!proto.couchbase.search.v1.SearchQueryRequest} returns this
+ */
+proto.couchbase.search.v1.SearchQueryRequest.prototype.setBucketName = function(value) {
+  return jspb.Message.setField(this, 15, value);
+};
+
+
+/**
+ * Clears the field making it undefined.
+ * @return {!proto.couchbase.search.v1.SearchQueryRequest} returns this
+ */
+proto.couchbase.search.v1.SearchQueryRequest.prototype.clearBucketName = function() {
+  return jspb.Message.setField(this, 15, undefined);
+};
+
+
+/**
+ * Returns whether this field is set.
+ * @return {boolean}
+ */
+proto.couchbase.search.v1.SearchQueryRequest.prototype.hasBucketName = function() {
+  return jspb.Message.getField(this, 15) != null;
+};
+
+
+/**
+ * optional string scope_name = 16;
+ * @return {string}
+ */
+proto.couchbase.search.v1.SearchQueryRequest.prototype.getScopeName = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 16, ""));
+};
+
+
+/**
+ * @param {string} value
+ * @return {!proto.couchbase.search.v1.SearchQueryRequest} returns this
+ */
+proto.couchbase.search.v1.SearchQueryRequest.prototype.setScopeName = function(value) {
+  return jspb.Message.setField(this, 16, value);
+};
+
+
+/**
+ * Clears the field making it undefined.
+ * @return {!proto.couchbase.search.v1.SearchQueryRequest} returns this
+ */
+proto.couchbase.search.v1.SearchQueryRequest.prototype.clearScopeName = function() {
+  return jspb.Message.setField(this, 16, undefined);
+};
+
+
+/**
+ * Returns whether this field is set.
+ * @return {boolean}
+ */
+proto.couchbase.search.v1.SearchQueryRequest.prototype.hasScopeName = function() {
+  return jspb.Message.getField(this, 16) != null;
+};
 
 
 
@@ -12490,7 +12586,6 @@ proto.couchbase.search.v1.SearchQueryResponse.TermFacetResult.prototype.toObject
  */
 proto.couchbase.search.v1.SearchQueryResponse.TermFacetResult.toObject = function(includeInstance, msg) {
   var f, obj = {
-    name: jspb.Message.getFieldWithDefault(msg, 1, ""),
     field: jspb.Message.getFieldWithDefault(msg, 2, ""),
     total: jspb.Message.getFieldWithDefault(msg, 3, 0),
     missing: jspb.Message.getFieldWithDefault(msg, 4, 0),
@@ -12533,10 +12628,6 @@ proto.couchbase.search.v1.SearchQueryResponse.TermFacetResult.deserializeBinaryF
     }
     var field = reader.getFieldNumber();
     switch (field) {
-    case 1:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setName(value);
-      break;
     case 2:
       var value = /** @type {string} */ (reader.readString());
       msg.setField(value);
@@ -12587,13 +12678,6 @@ proto.couchbase.search.v1.SearchQueryResponse.TermFacetResult.prototype.serializ
  */
 proto.couchbase.search.v1.SearchQueryResponse.TermFacetResult.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
-  f = message.getName();
-  if (f.length > 0) {
-    writer.writeString(
-      1,
-      f
-    );
-  }
   f = message.getField();
   if (f.length > 0) {
     writer.writeString(
@@ -12630,24 +12714,6 @@ proto.couchbase.search.v1.SearchQueryResponse.TermFacetResult.serializeBinaryToW
       proto.couchbase.search.v1.SearchQueryResponse.TermResult.serializeBinaryToWriter
     );
   }
-};
-
-
-/**
- * optional string name = 1;
- * @return {string}
- */
-proto.couchbase.search.v1.SearchQueryResponse.TermFacetResult.prototype.getName = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
-};
-
-
-/**
- * @param {string} value
- * @return {!proto.couchbase.search.v1.SearchQueryResponse.TermFacetResult} returns this
- */
-proto.couchbase.search.v1.SearchQueryResponse.TermFacetResult.prototype.setName = function(value) {
-  return jspb.Message.setProto3StringField(this, 1, value);
 };
 
 
@@ -13062,7 +13128,6 @@ proto.couchbase.search.v1.SearchQueryResponse.DateRangeFacetResult.prototype.toO
  */
 proto.couchbase.search.v1.SearchQueryResponse.DateRangeFacetResult.toObject = function(includeInstance, msg) {
   var f, obj = {
-    name: jspb.Message.getFieldWithDefault(msg, 1, ""),
     field: jspb.Message.getFieldWithDefault(msg, 2, ""),
     total: jspb.Message.getFieldWithDefault(msg, 3, 0),
     missing: jspb.Message.getFieldWithDefault(msg, 4, 0),
@@ -13105,10 +13170,6 @@ proto.couchbase.search.v1.SearchQueryResponse.DateRangeFacetResult.deserializeBi
     }
     var field = reader.getFieldNumber();
     switch (field) {
-    case 1:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setName(value);
-      break;
     case 2:
       var value = /** @type {string} */ (reader.readString());
       msg.setField(value);
@@ -13159,13 +13220,6 @@ proto.couchbase.search.v1.SearchQueryResponse.DateRangeFacetResult.prototype.ser
  */
 proto.couchbase.search.v1.SearchQueryResponse.DateRangeFacetResult.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
-  f = message.getName();
-  if (f.length > 0) {
-    writer.writeString(
-      1,
-      f
-    );
-  }
   f = message.getField();
   if (f.length > 0) {
     writer.writeString(
@@ -13202,24 +13256,6 @@ proto.couchbase.search.v1.SearchQueryResponse.DateRangeFacetResult.serializeBina
       proto.couchbase.search.v1.SearchQueryResponse.DateRangeResult.serializeBinaryToWriter
     );
   }
-};
-
-
-/**
- * optional string name = 1;
- * @return {string}
- */
-proto.couchbase.search.v1.SearchQueryResponse.DateRangeFacetResult.prototype.getName = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
-};
-
-
-/**
- * @param {string} value
- * @return {!proto.couchbase.search.v1.SearchQueryResponse.DateRangeFacetResult} returns this
- */
-proto.couchbase.search.v1.SearchQueryResponse.DateRangeFacetResult.prototype.setName = function(value) {
-  return jspb.Message.setProto3StringField(this, 1, value);
 };
 
 
@@ -13592,7 +13628,6 @@ proto.couchbase.search.v1.SearchQueryResponse.NumericRangeFacetResult.prototype.
  */
 proto.couchbase.search.v1.SearchQueryResponse.NumericRangeFacetResult.toObject = function(includeInstance, msg) {
   var f, obj = {
-    name: jspb.Message.getFieldWithDefault(msg, 1, ""),
     field: jspb.Message.getFieldWithDefault(msg, 2, ""),
     total: jspb.Message.getFieldWithDefault(msg, 3, 0),
     missing: jspb.Message.getFieldWithDefault(msg, 4, 0),
@@ -13635,10 +13670,6 @@ proto.couchbase.search.v1.SearchQueryResponse.NumericRangeFacetResult.deserializ
     }
     var field = reader.getFieldNumber();
     switch (field) {
-    case 1:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setName(value);
-      break;
     case 2:
       var value = /** @type {string} */ (reader.readString());
       msg.setField(value);
@@ -13689,13 +13720,6 @@ proto.couchbase.search.v1.SearchQueryResponse.NumericRangeFacetResult.prototype.
  */
 proto.couchbase.search.v1.SearchQueryResponse.NumericRangeFacetResult.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
-  f = message.getName();
-  if (f.length > 0) {
-    writer.writeString(
-      1,
-      f
-    );
-  }
   f = message.getField();
   if (f.length > 0) {
     writer.writeString(
@@ -13732,24 +13756,6 @@ proto.couchbase.search.v1.SearchQueryResponse.NumericRangeFacetResult.serializeB
       proto.couchbase.search.v1.SearchQueryResponse.NumericRangeResult.serializeBinaryToWriter
     );
   }
-};
-
-
-/**
- * optional string name = 1;
- * @return {string}
- */
-proto.couchbase.search.v1.SearchQueryResponse.NumericRangeFacetResult.prototype.getName = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
-};
-
-
-/**
- * @param {string} value
- * @return {!proto.couchbase.search.v1.SearchQueryResponse.NumericRangeFacetResult} returns this
- */
-proto.couchbase.search.v1.SearchQueryResponse.NumericRangeFacetResult.prototype.setName = function(value) {
-  return jspb.Message.setProto3StringField(this, 1, value);
 };
 
 
